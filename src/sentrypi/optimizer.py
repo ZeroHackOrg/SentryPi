@@ -1,3 +1,6 @@
+_CONTROL_OPS = {"BRANCH", "DELAY", "LOOP", "WHILE", "TIMER", "JUMP", "ANALOG_READ"}
+
+
 def optimize(tac):
     removed = 0
     optimized = []
@@ -25,9 +28,7 @@ def optimize(tac):
                 removed += 1
                 continue
             previous_write = key
-        elif op == "BRANCH":
-            previous_write = None
-        elif op == "DELAY":
+        elif op in _CONTROL_OPS:
             previous_write = None
         optimized.append(instruction)
 

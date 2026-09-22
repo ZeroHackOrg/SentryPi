@@ -7,6 +7,15 @@ All notable changes to SentryPi are documented here. This project follows
 ## [Unreleased]
 
 ### Added
+- **Full Edge Power & Loop Engine** — Lexer regex refactor; new control-flow grammar:
+  - `REPEAT <N> TIMES ... END` (bounded loops with overflow + loop-bound checks)
+  - `WHILE <pin> [IS] HIGH|LOW ... END` (TOCTOU-guarded conditional task)
+  - `EVERY <N> MS ... END` (cooperative periodic task timer)
+  - `ANALOG_READ <pin>` and `LINK ... AS ANALOG` (ADC thermistor / sensor channel sampling)
+- **ESP32 & Arduino / LLVM IR Backends** — `target_esp32.py`: lowers verified SentryPi AST to an Arduino sketch (`.ino`) via `PHYSICAL_TO_GPIO` and dumps an illustrative LLVM-style IR report (`.ll`), registered in `targets.py` (`SENTRYPI_TARGET=esp32`).
+- **Network-Layer Threat Signatures & CVE Registry** — `threats.py`: static pattern scan for raw sockets, port binds, wildcard listeners, and CVE patterns catalogued against the CWE catalog (CWE-121, CWE-120, CWE-798, CWE-78, CWE-319, CWE-122).
+- **Security Audit CLI** — `sentryc audit <source>` runs firewall, threat signatures, and CVE matching without emitting artifacts; `--registry` prints the CWE-aligned CVE pattern registry table.
+- **New Examples** — `scheduler.pi`, `sensor_analog.pi`, `net_threat.pi`, and `network_attack.pi`.
 - **Hackathon smart-home demo** — `examples/living_room.pi` (healthy
   automation trace, compiles clean) and `examples/device_fault.pi`
   (corrupted-stream trace, Safe-Fail firewall blocks it, exit 2) with the
@@ -16,9 +25,7 @@ All notable changes to SentryPi are documented here. This project follows
   script, script side-by-sides, 2-LED rig layout with BCM↔physical mapping,
   the universal domain pitch matrix (Agri-Tech / Smart Homes / Cybersecurity
   / AI), community CTA, and launch/social copy.
-- CI now compiles `living_room.pi` and verifies `device_fault.pi` is rejected
-  (exit 2); unit tests now 92 via `tests/test_examples.py`.
-- Repo now lives at `github.com/ZeroHackOrg/SentryPi` (initial push).
+- Unit tests expanded from 92 to **138** (covering control flow, threats, and ESP32 targets); CI updated.
 
 ### Changed
 - README rebuilt as a production-grade document: problem/solution framing,

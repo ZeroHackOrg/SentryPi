@@ -6,7 +6,7 @@
 [![Version](https://img.shields.io/badge/version-0.2.1-informational.svg)](#)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-A22846.svg)](https://www.raspberrypi.com/)
-[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen.svg)](https://github.com/ZeroHackOrg/SentryPi/actions)
+[![Tests](https://img.shields.io/badge/tests-138%20passing-brightgreen.svg)](https://github.com/ZeroHackOrg/SentryPi/actions)
 [![Build](https://github.com/ZeroHackOrg/SentryPi/actions/workflows/ci.yml/badge.svg)](https://github.com/ZeroHackOrg/SentryPi/actions)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -19,7 +19,7 @@ rejects unsafe or corrupted logic at compile time — before any electrical sign
 reaches the physical hardware.
 
 Built from scratch by ZeroHack.org. No external dependencies, no framework glue,
-90+ unit tests.
+138 unit tests.
 
 ---
 
@@ -31,7 +31,10 @@ Built from scratch by ZeroHack.org. No external dependencies, no framework glue,
 - [The Gap We Close](#the-gap-we-close)
 - [How It Works](#how-it-works)
 - [The Language](#the-language)
+- [Loops, Timers, and the Edge Scheduler](#loops-timers-and-the-edge-scheduler)
+- [Analog Input (ADC)](#analog-input-adc)
 - [The Security Firewall](#the-security-firewall)
+- [Threat Signatures and the CVE Registry](#threat-signatures-and-the-cve-registry)
 - [Cryptographic Source Signing](#cryptographic-source-signing)
 - [Backends and Artifacts](#backends-and-artifacts)
 - [Command Line](#command-line)
@@ -172,12 +175,16 @@ Every compile that *fails* the firewall reports the exact line and rule and
 A `.pi` file is a list of plain-English statements:
 
 ```
-statement := LINK  PIN <int> TO <name> [AS OUTPUT|INPUT]   # declare hardware
+statement := LINK  PIN <int> TO <name> [AS OUTPUT|INPUT|ANALOG]  # declare hardware
            | <name> HIGH|LOW                               # alias write
            | TRIGGER <name> HIGH|LOW                       # drive an output
            | LOG <string>                                  # log line
            | DELAY <int> MS                                # scheduling barrier
            | IF <name> [IS] HIGH|LOW THEN ... END          # event branch
+           | REPEAT <int> TIMES ... END                    # bounded loop
+           | WHILE <name> [IS] HIGH|LOW ... END            # conditional task
+           | EVERY <int> MS ... END                        # periodic timer task
+           | ANALOG_READ <name>                            # sample an ADC channel
            | ATOMIC ... END                                # race-free block
            | AUTHENTICATE WITH "<hex>"                     # signature (line 1)
            | FORCE OVERRIDE <resource> WITH <string> [* <int>]  # blocked by firewall
@@ -205,6 +212,7 @@ $ sentryc examples/living_room.pi -o build
 [SentryPi] Scanning tokens... Success.
 [SentryPi] Building Abstract Syntax Tree... Success.
 [SentryPi] Running Semantic Analysis... Success.
+[SentryPi] Scanning threat signatures... 0 finding(s).
 [SentryPi] Running Static Security Firewall... PASS (0 Threats Detected).
 [SentryPi] Generating Intermediate Representation... 8 TAC instructions.
 [SentryPi] Optimizing instruction schedule... 8 instructions (0 redundant removed).
@@ -218,6 +226,69 @@ $ sentryc examples/living_room.pi -o build
 
 ---
 
+## Loops, Timers, and the Edge Scheduler
+
+SentryPi compiles three iteration-control shapes. Their safety is the point:
+a loop is not just syntax, it is a **bounded resource** that the firewall
+audits before code generation.
+
+- `REPEAT <n> TIMES ... END` — a fixed-count burst. The firewall rejects counts
+  beyond `1_000_000` (task-starvation / watchdog risk) and warns when a body
+  toggles a pin more than 20 times per iteration without a `DELAY` barrier.
+- `WHILE <pin> [IS] HIGH|LOW ... END` — a conditional task. Polling a physical
+  input is treated exactly like `IF`: outside an `ATOMIC` block it raises the
+  TOCTOU race warning, escalated to an error under `--hard`.
+- `EVERY <n> MS ... END` — a cooperative periodic task. It yields on every tick
+  so it can never starve the scheduler; a `0 MS` interval is rejected as a
+  busy-wait.
+
+```
++--------------- scheduler lowering -----------------------------------------+
+| REPEAT -> LOOP(count) ... JUMP        (counted, bounded, overflow-guarded)  |
+| WHILE  -> BRANCH(cond) ... JUMP       (TOCTOU-audited, atomic-required)     |
+| EVERY  -> TIMER(ms) ... JUMP          (cooperative, self-yielding, guarded) |
+| ATOMIC -> flattened, race-free         (wraps any of the above)             |
++------------------------------------------------------------------------------+
+```
+
+| Statement | IR opcodes | ARM `.sh` | ARM `_driver.py` | ESP32 `.ino` |
+| :--- | :--- | :--- | :--- | :--- |
+| `REPEAT n TIMES` | `LOOP` ... `JUMP` | `for __iter in $(seq 1 n)` | `for __iter in range(n)` | `for (int __iter = 0; __iter < n; __iter++)` |
+| `WHILE pin HIGH` | `WHILE` ... `JUMP` | `while [ "$(cat ...)" = "1" ]` | `while read_pin(...) == 1` | `while (digitalRead(...) == HIGH)` |
+| `EVERY n MS` | `TIMER` ... `JUMP` | `while :; do ...; sleep` | `while True: ...; time.sleep` | `while (true) { ...; delay(n); }` |
+
+The complete example is `examples/scheduler.pi`. The loop-bound rule
+(`loop_bound`) and the loop-overload rule (reusing `overload`) escalate to
+errors under `--hard`.
+
+---
+
+## Analog Input (ADC)
+
+`ANALOG_READ` samples an analog channel declared `AS ANALOG`:
+
+```
+LINK PIN 32 TO THERMISTOR AS ANALOG
+EVERY 500 MS
+    ANALOG_READ THERMISTOR
+    LOG "Sampling analog temperature channel."
+END
+```
+
+An `ANALOG` channel is an input-only peripheral: **writing** one is rejected
+(`input_write`), and reading a channel that was declared `OUTPUT`/`INPUT` is
+rejected (`analog_unsafe`) — the firewall demands `AS ANALOG` so sampling is
+always explicit and auditable.
+
+- ARM backend: `_driver.py` gains a `read_analog(channel)` helper that reads
+  an IIO voltage node; the sysfs `.sh` records the channel mapping for an ADC
+  backend.
+- ESP32 backend: lowers to `analogRead(PIN_<name>)` with 12-bit resolution.
+
+Full example: `examples/sensor_analog.pi`.
+
+---
+
 ## The Security Firewall
 
 The firewall (`static_analyzer.py`) walks the AST and blocks any program that
@@ -228,23 +299,28 @@ moves outside safe hardware boundaries:
 | Reserved-pin hijack | ERROR | `LINK` to `1, 2, 4, 6, 9, 14, 20, 25, 30, 34, 39` |
 | Invalid pin | ERROR | pin outside the physical 40-pin header |
 | System-component lock | ERROR | `LINK` to `SYSTEM_CLOCK` / `SYSTEM_BUS` |
-| Input write | ERROR | writing a payload to an `INPUT` peripheral |
+| Input write | ERROR | writing a payload to an `INPUT` or `ANALOG` peripheral |
+| Analog unsafe read | ERROR | `ANALOG_READ` on a channel not declared `AS ANALOG` |
 | Buffer overflow | ERROR | `FORCE OVERRIDE` effective size > 256 bytes |
 | Lexical bounds | ERROR | identifier > 32 chars, string > 256 bytes |
-| TOCTOU race | WARN -> ERROR under `--hard` | `IF` reads a peripheral outside `ATOMIC` |
+| TOCTOU race | WARN -> ERROR under `--hard` | `IF` / `WHILE` reads a peripheral outside `ATOMIC` |
 | Current overload | WARN -> ERROR under `--hard` | > 20 pin toggles without a `DELAY` barrier |
+| Loop bound | WARN -> ERROR under `--hard` | `REPEAT` count > 1,000,000; `EVERY 0 MS` busy-wait |
+| Loop overload | WARN -> ERROR under `--hard` | `REPEAT` body toggles x iterations > 20, no `DELAY` |
+| Network threat / CVE | WARN -> ERROR under `--hard` | payload matches a registered threat signature |
 
 Decision flow:
 
 ```
 source.pi --> has signature (when a key is set)?
    |-- no / mismatch --> atexit 2 (blocked)
-   |-- yes --> lex -> parse --> firewall check
-                          |-- error --> atexit 2
-                          |-- warn (TOCTOU / overload)
-                          |     |-- --hard? --> atexit 2
-                          |     |-- default  --> emit
-                          |-- clean --> emit
+   |-- yes --> threat-signature scan ---> lex -> parse --> firewall check
+                                       |                |-- error --> atexit 2
+                                       |                |-- warn (TOCTOU / overload
+                                       |                |      / loop-bound / threat)
+                                       |                |      |-- --hard? --> atexit 2
+                                       |                |      |-- default  --> emit
+                                       |                |-- clean --> emit
 ```
 
 A hostile source is rejected with the exact failing line and rule:
@@ -264,7 +340,54 @@ into hard errors for enterprise strict-mode builds.
 
 ---
 
-## Cryptographic Source Signing
+## Threat Signatures and the CVE Registry
+
+In addition to static hardware verification, SentryPi includes `threats.py`:
+a static source scanner that flags **network-layer threat signatures** (raw
+sockets, port binding, wildcard listeners, unbounded datagram recieves) and
+**known CVE patterns** mapped to the CWE catalog (unsafe string copy, unbounded
+receive, hard-coded credentials, shell injection, disabled TLS).
+
+```
++------------------- threat scan --------------------------------------------+
+| source_text -> scan_threats() -> matches network patterns & CWE patterns   |
+|                 |-- relaxed: reports as WARN findings                      |
+|                 |-- --hard : escalates to ERROR (fail closed)              |
++----------------------------------------------------------------------------+
+```
+
+Run an audit standalone without emitting files:
+
+```
+$ sentryc audit examples/net_threat.pi
+
+Security audit report for examples/net_threat.pi (target: arm)
+----------------------------------------------------------------------------------------------------
+LINE   SEVERITY  RULE                 MESSAGE
+----------------------------------------------------------------------------------------------------
+9      WARN      network_threat       Network threat: raw-socket primitive detected; raw sockets bypass...
+10     WARN      cve_signature        CVE signature SENTRY-CVE-2026-003 (Hard-coded credential, CWE-798)...
+----------------------------------------------------------------------------------------------------
+```
+
+Inspect the CVE pattern registry from the CLI:
+
+```
+$ sentryc audit --registry
+SentryPi CVE pattern registry
+------------------------------------------------------------------------------
+ID                     SEVERITY  CWE              FAMILY
+------------------------------------------------------------------------------
+SENTRY-CVE-2026-001    HIGH      CWE-121 / CWE-676 Unsafe string copy
+SENTRY-CVE-2026-002    HIGH      CWE-120 / CWE-190 Unbounded receive
+SENTRY-CVE-2026-003    HIGH      CWE-798          Hard-coded credential
+SENTRY-CVE-2026-004    CRITICAL  CWE-78           Shell command injection
+SENTRY-CVE-2026-005    HIGH      CWE-319 / CWE-295 Disabled transport security
+SENTRY-CVE-2026-006    MEDIUM    CWE-122          Manual memory ownership
+------------------------------------------------------------------------------
+```
+
+---
 
 SentryPi can require every source to be signed by an authorized developer
 before it compiles:
@@ -311,14 +434,22 @@ registered ids:
 
 ```
 $ SENTRYPI_TARGET=arm sentryc examples/alarm.pi -o build
-$ SENTRYPI_TARGET=esp32 sentryc app.pi
-KeyError: Unknown architecture target 'esp32'. Registered targets: arm.
+$ SENTRYPI_TARGET=esp32 sentryc examples/scheduler.pi -o build
+$ SENTRYPI_TARGET=atari-2600 sentryc app.pi
+KeyError: Unknown architecture target 'atari-2600'. Registered targets: arm, esp32.
 ```
 
-Physical pins are mapped to BCM GPIO through `PHYSICAL_TO_BCM` (e.g. physical
-pin 18 -> BCM 24). `FORCE OVERRIDE` is never synthesized in any backend. The
-registry exists so ESP32, STM32, Arduino, and LLVM backends can be added as
-licensed plugins without touching the compiler core.
+Physical pins are mapped to BCM GPIO through `PHYSICAL_TO_BCM` (ARM) or
+`PHYSICAL_TO_GPIO` (ESP32). `FORCE OVERRIDE` is never synthesized in any backend.
+The registry exists so STM32, Arduino, and custom AI backends can be added as
+licensed plugins without touching the core compiler.
+
+Supported targets in core:
+
+| Target ID | Name | Boards / Silicon | Emitted Artifacts |
+| :--- | :--- | :--- | :--- |
+| `arm` | Raspberry Pi ARM | Pi 4B, Pi 5 (BCM2835 / RP1) | `.bin`, `.map`, `.sh`, `_driver.py` |
+| `esp32` | Espressif ESP32 | ESP32 DevKit V1, WROOM-32 | `.map`, `.ino` (Arduino), `.ll` (LLVM) |
 
 ---
 
@@ -330,6 +461,7 @@ usage: sentryc [-h] [-o OUTPUT_DIR] [--no-bin] [--no-map] [--no-sh]
 
 subcommands:
   sentryc sign <source> [-o OUTPUT] [--key KEY]   attach HMAC signature
+  sentryc audit <source> [--hard] [--registry]     static security & threat audit
   sentryc serve [--host HOST] [--port PORT]        localhost web playground
 
 environment:
@@ -369,6 +501,10 @@ sentrypi/
 │   ├── smart_home.pi             # full multi-output smart-home kit
 │   ├── living_room.pi            # healthy smart-home trace (compiles clean)
 │   ├── device_fault.pi           # corrupted-stream trace (blocked, exit 2)
+│   ├── scheduler.pi              # bounded loops, while-task, timer task
+│   ├── sensor_analog.pi          # ADC thermistor read + comparator gate
+│   ├── net_threat.pi             # threat signatures in payload (audit warning)
+│   ├── network_attack.pi         # network threat payload (--hard rejects)
 │   ├── hackathon_demo.py         # two-trace table driver (real pipeline)
 │   ├── race.pi                   # TOCTOU hazard demo (warns; --hard rejects)
 │   ├── strobe.pi                 # overload hazard demo (warns; --hard rejects)
@@ -379,15 +515,17 @@ sentrypi/
 │   ├── parser.py                 # LL(1) parser with panic-mode recovery
 │   ├── semantic_analyzer.py      # symbol table, IO-mode checks
 │   ├── static_analyzer.py        # the Security Firewall
+│   ├── threats.py                # network-layer threats + CVE registry
 │   ├── crypto.py                 # HMAC-SHA256 verifier + signer
 │   ├── ir.py                     # three-address code generator
 │   ├── optimizer.py              # redundant-write folding
 │   ├── target_arm.py             # .bin / .map / .sh / _driver.py codegen
+│   ├── target_esp32.py           # .ino (Arduino) & .ll (LLVM IR) codegen
 │   ├── targets.py                # backend registry
 │   ├── compiler.py               # pipeline orchestration
 │   ├── cli.py                    # sentryc entry point
 │   └── playground.py             # localhost web editor
-├── tests/                        # 92 unit tests
+├── tests/                        # 138 unit tests
 ├── SECURITY.md                   # disclosure policy and threat model
 ├── CONTRIBUTING.md               # contributor guide
 ├── CHANGELOG.md                  # release history
@@ -409,7 +547,7 @@ pip install -e .            # installs the sentryc binary
 
 sentryc --version           # verify install
 sentryc examples/blink.pi   # compile the first program (zero hardware required)
-python -m unittest discover -s tests -v   # run the 92-test suite
+python -m unittest discover -s tests -v   # run the 138-test suite
 ```
 
 The zero-hardware sandbox workflow, first-run wiring, and a signed-CI gate are
@@ -537,11 +675,13 @@ it privately per the disclosure procedure in `SECURITY.md`.
 
 ## Roadmap
 
-- Network-layer threat signatures (port binding, raw sockets).
-- Loop / timer constructs and a multi-tasking scheduler.
-- Analog input (`ANALOG_READ`) and timing primitives.
-- ESP32 and Arduino / LLVM IR backends.
-- A registry of known CVE patterns for common IoT stacks.
+- [x] Network-layer threat signatures (port binding, raw sockets) — `threats.py`
+- [x] Loop / timer constructs and a multi-tasking scheduler (`REPEAT`, `WHILE`, `EVERY`)
+- [x] Analog input (`ANALOG_READ` and `AS ANALOG` pin mode)
+- [x] ESP32 and Arduino (`.ino`) / LLVM IR (`.ll`) backends (`target_esp32.py`)
+- [x] A registry of known CVE patterns for common IoT stacks (CWE-aligned)
+- [ ] STM32 Bare-Metal / Cortex-M MicroPython bridge backend
+- [ ] Formal verification model for ATOMIC transaction bounds (SPIN model checker export)
 
 ---
 

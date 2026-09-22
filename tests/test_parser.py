@@ -5,15 +5,19 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from sentrypi.ast_nodes import (
+    AnalogRead,
     Assign,
     AtomicBlock,
     Authenticate,
     Delay,
+    EveryBlock,
     ForceOverride,
     IfBlock,
     LinkPin,
     Log,
+    RepeatBlock,
     Trigger,
+    WhileBlock,
 )
 from sentrypi.lexer import tokenize
 from sentrypi.parser import Parser
@@ -138,6 +142,58 @@ class TestParser(unittest.TestCase):
         stmt = parse('AUTHENTICATE WITH "0xDEADBEEF"').statements[0]
         self.assertIsInstance(stmt, Authenticate)
         self.assertEqual(stmt.signature, "0xDEADBEEF")
+
+    def test_repeat_block(self):
+        program = parse("REPEAT 3 TIMES\n    LOG \"tick\"\nEND\n")
+        stmt = program.statements[0]
+        self.assertIsInstance(stmt, RepeatBlock)
+        self.assertEqual(stmt.count, 3)
+        self.assertEqual(len(stmt.body), 1)
+        self.assertIsInstance(stmt.body[0], Log)
+
+    def test_unclosed_repeat(self):
+        _, errors = parse_with_errors("REPEAT 2 TIMES\n    LOG \"x\"\n")
+        self.assertTrue(errors)
+
+    def test_while_block(self):
+        stmt = parse("WHILE PIR IS HIGH\n    LOG \"x\"\nEND\n").statements[0]
+        self.assertIsInstance(stmt, WhileBlock)
+        self.assertEqual(stmt.condition, "PIR")
+        self.assertEqual(stmt.state, "HIGH")
+
+    def test_while_without_is(self):
+        stmt = parse("WHILE PIR LOW\n    LOG \"x\"\nEND\n").statements[0]
+        self.assertIsInstance(stmt, WhileBlock)
+        self.assertEqual(stmt.state, "LOW")
+
+    def test_every_block(self):
+        stmt = parse("EVERY 500 MS\n    LOG \"heartbeat\"\nEND\n").statements[0]
+        self.assertIsInstance(stmt, EveryBlock)
+        self.assertEqual(stmt.ms, 500)
+
+    def test_analog_read(self):
+        stmt = parse("ANALOG_READ THERMISTOR").statements[0]
+        self.assertIsInstance(stmt, AnalogRead)
+        self.assertEqual(stmt.target, "THERMISTOR")
+
+    def test_link_analog_mode(self):
+        stmt = parse("LINK PIN 32 TO THERMISTOR AS ANALOG").statements[0]
+        self.assertIsInstance(stmt, LinkPin)
+        self.assertEqual(stmt.mode, "ANALOG")
+
+    def test_nested_blocks(self):
+        program = parse(
+            "EVERY 500 MS\n"
+            "    REPEAT 2 TIMES\n"
+            "        WHILE PIR HIGH\n"
+            "            LOG \"nested\"\n"
+            "        END\n"
+            "    END\n"
+            "END\n"
+        )
+        every = program.statements[0]
+        self.assertIsInstance(every.body[0], RepeatBlock)
+        self.assertIsInstance(every.body[0].body[0], WhileBlock)
 
 
 if __name__ == "__main__":

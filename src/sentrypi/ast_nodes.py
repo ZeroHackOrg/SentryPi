@@ -61,6 +61,34 @@ class IfBlock:
 
 
 @dataclass
+class RepeatBlock:
+    count: int
+    body: list
+    line: int
+
+
+@dataclass
+class WhileBlock:
+    condition: str
+    body: list
+    line: int
+    state: str = "HIGH"
+
+
+@dataclass
+class EveryBlock:
+    ms: int
+    body: list
+    line: int
+
+
+@dataclass
+class AnalogRead:
+    target: str
+    line: int
+
+
+@dataclass
 class ForceOverride:
     target: str
     value: str

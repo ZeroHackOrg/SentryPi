@@ -1,4 +1,18 @@
-from .ast_nodes import Assign, AtomicBlock, Authenticate, Delay, ForceOverride, IfBlock, LinkPin, Log, Trigger
+from .ast_nodes import (
+    AnalogRead,
+    Assign,
+    AtomicBlock,
+    Authenticate,
+    Delay,
+    EveryBlock,
+    ForceOverride,
+    IfBlock,
+    LinkPin,
+    Log,
+    RepeatBlock,
+    Trigger,
+    WhileBlock,
+)
 
 
 class IRGenerator:
@@ -56,6 +70,28 @@ class IRGenerator:
                 self.tac.append({"op": "BRANCH", "reg": register, "value": value, "label": label})
                 self.tac.append({"op": "LABEL", "name": label})
                 self._walk(statement.body)
+            elif isinstance(statement, RepeatBlock):
+                register = self._temp()
+                label = self._label()
+                self.tac.append({"op": "LOOP", "reg": register, "count": statement.count, "label": label})
+                self._walk(statement.body)
+                self.tac.append({"op": "JUMP", "label": label})
+            elif isinstance(statement, WhileBlock):
+                register = self._reference(statement.condition)
+                label = self._label()
+                value = 1 if statement.state == "HIGH" else 0
+                self.tac.append({"op": "WHILE", "reg": register, "value": value, "label": label})
+                self._walk(statement.body)
+                self.tac.append({"op": "JUMP", "label": label})
+            elif isinstance(statement, EveryBlock):
+                register = self._temp()
+                label = self._label()
+                self.tac.append({"op": "TIMER", "reg": register, "ms": statement.ms, "label": label})
+                self._walk(statement.body)
+                self.tac.append({"op": "JUMP", "label": label})
+            elif isinstance(statement, AnalogRead):
+                register = self._reference(statement.target)
+                self.tac.append({"op": "ANALOG_READ", "reg": register})
             elif isinstance(statement, ForceOverride):
                 self.tac.append(
                     {"op": "OVERRIDE", "target": statement.target, "count": statement.count}

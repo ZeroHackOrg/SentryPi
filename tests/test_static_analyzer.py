@@ -120,6 +120,80 @@ class TestSecurityFirewall(unittest.TestCase):
         source = "LINK PIN 18 TO LED AS OUTPUT\n" + "LED HIGH\nLED LOW\n" * 9 + "DELAY 2000 MS\n" + "LED HIGH\nLED LOW\n" * 9
         self.assertEqual(len(errors_of_hard(source)), 0)
 
+    def test_analog_read_requires_analog_channel(self):
+        source = "LINK PIN 18 TO THERMISTOR AS OUTPUT\nANALOG_READ THERMISTOR\n"
+        errors = errors_of(source)
+        self.assertTrue(any("ANALOG_READ" in error.message for error in errors))
+        self.assertTrue(any("AS ANALOG" in error.message for error in errors))
+        safe = "LINK PIN 32 TO THERMISTOR AS ANALOG\nANALOG_READ THERMISTOR\n"
+        self.assertEqual(errors_of(safe), [])
+
+    def test_analog_write_is_rejected(self):
+        errors = errors_of("LINK PIN 32 TO THERMISTOR AS ANALOG\nTHERMISTOR HIGH\n")
+        self.assertTrue(any("analog sensor channel" in error.message for error in errors))
+        self.assertTrue(all(error.severity == "ERROR" for error in errors))
+
+    def test_while_poll_triggers_toctou_warning(self):
+        source = (
+            "LINK PIN 23 TO PIR AS INPUT\n"
+            "LINK PIN 18 TO LED AS OUTPUT\n"
+            "WHILE PIR IS HIGH\n"
+            "    LED HIGH\n"
+            "END\n"
+        )
+        issues = firewall(source)
+        self.assertTrue(any("TOCTOU" in issue.message for issue in issues))
+        self.assertEqual(len(errors_of_hard(source)), 1)
+
+    def test_while_wrapped_in_atomic_is_clean(self):
+        source = (
+            "LINK PIN 23 TO PIR AS INPUT\n"
+            "LINK PIN 18 TO LED AS OUTPUT\n"
+            "ATOMIC\n"
+            "    WHILE PIR IS HIGH\n"
+            "        LED HIGH\n"
+            "    END\n"
+            "END\n"
+        )
+        messages = [issue.message for issue in firewall(source)]
+        self.assertFalse(any("TOCTOU" in message for message in messages))
+
+    def test_repeat_loop_overload_warns_and_escalates(self):
+        source = (
+            "LINK PIN 18 TO LED AS OUTPUT\n"
+            "REPEAT 13 TIMES\n"
+            "    LED HIGH\n"
+            "    LED LOW\n"
+            "END\n"
+        )
+        issues = firewall(source)
+        self.assertTrue(
+            any("overload" in issue.message or "toggles" in issue.message for issue in issues)
+        )
+        self.assertEqual(len(errors_of_hard(source)), 1)
+
+    def test_repeat_with_delay_barrier_is_clean(self):
+        source = (
+            "LINK PIN 18 TO LED AS OUTPUT\n"
+            "REPEAT 100 TIMES\n"
+            "    LED HIGH\n"
+            "    DELAY 10 MS\n"
+            "    LED LOW\n"
+            "END\n"
+        )
+        self.assertEqual(errors_of_hard(source), [])
+
+    def test_repeat_bound_exceeded_warns(self):
+        source = "LINK PIN 18 TO LED AS OUTPUT\nREPEAT 2000000 TIMES\n    LED HIGH\nEND\n"
+        issues = firewall(source)
+        self.assertTrue(any("Loop bound" in issue.message for issue in issues))
+        self.assertGreaterEqual(len(errors_of_hard(source)), 1)
+
+    def test_every_zero_interval_warns(self):
+        source = "LINK PIN 18 TO LED AS OUTPUT\nEVERY 0 MS\n    LED LOW\nEND\n"
+        issues = firewall(source)
+        self.assertTrue(any("busy-waits" in issue.message for issue in issues))
+
 
 if __name__ == "__main__":
     unittest.main()

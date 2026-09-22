@@ -1,3 +1,4 @@
+import re
 from collections import namedtuple
 
 Token = namedtuple("Token", ["kind", "value", "line", "column"])
@@ -12,6 +13,7 @@ KEYWORDS = {
     "AS",
     "OUTPUT",
     "INPUT",
+    "ANALOG",
     "TRIGGER",
     "HIGH",
     "LOW",
@@ -24,7 +26,11 @@ KEYWORDS = {
     "OVERRIDE",
     "BUFFER",
     "WITH",
-    "MUL",
+    "REPEAT",
+    "TIMES",
+    "WHILE",
+    "EVERY",
+    "ANALOG_READ",
     "AUTHENTICATE",
     "ATOMIC",
     "DELAY",
@@ -32,6 +38,21 @@ KEYWORDS = {
 }
 
 _ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}
+
+# Lexeme table: ordered (kind, regular expression) pairs. The first pattern
+# that matches at the current position wins. Whitespace, newlines, and
+# comments advance the scanner without producing tokens.
+_LEXEMES = [
+    ("STRING", r'"(?:\\.|[^"\\])*"'),
+    ("INT", r"\d+"),
+    ("MUL", r"\*"),
+    ("IDENT", r"[A-Za-z_][A-Za-z0-9_]*"),
+    ("WHITESPACE", r"[ \t\r]+"),
+    ("NEWLINE", r"\n"),
+    ("COMMENT", r"#[^\n]*"),
+]
+
+_COMPILED = [(kind, re.compile(pattern)) for kind, pattern in _LEXEMES]
 
 
 class LexError(Exception):
@@ -42,89 +63,73 @@ class LexError(Exception):
         self.column = column
 
 
+def _escape_string(raw):
+    chars = []
+    index = 0
+    while index < len(raw):
+        current = raw[index]
+        if current == "\\" and index + 1 < len(raw):
+            chars.append(_ESCAPES.get(raw[index + 1], raw[index + 1]))
+            index += 2
+            continue
+        chars.append(current)
+        index += 1
+    return "".join(chars)
+
+
 def tokenize(source):
     tokens = []
-    length = len(source)
-    index = 0
     line = 1
-    column = 1
-    while index < length:
-        char = source[index]
-        if char == "\n":
-            line += 1
-            column = 1
-            index += 1
-            continue
-        if char in " \t\r":
-            index += 1
-            column += 1
-            continue
-        if char == "#":
-            while index < length and source[index] != "\n":
-                index += 1
-            continue
-        if char == '"':
-            start_line = line
-            start_col = column
-            index += 1
-            column += 1
-            chars = []
-            while index < length and source[index] != '"':
-                current = source[index]
-                if current == "\\":
-                    if index + 1 >= length:
-                        raise LexError("Unterminated string literal.", start_line, start_col)
-                    nxt = source[index + 1]
-                    chars.append(_ESCAPES.get(nxt, nxt))
-                    index += 2
-                    column += 2
-                    continue
-                chars.append(current)
-                index += 1
-                column += 1
-            if index >= length:
-                raise LexError("Unterminated string literal.", start_line, start_col)
-            index += 1
-            column += 1
-            value = "".join(chars)
-            if len(value.encode("utf-8")) > STRING_MAX_BYTES:
-                raise LexError(
-                    f"Buffer overflow vulnerability detected! String size ({len(value.encode('utf-8'))} bytes) "
-                    f"exceeds safe buffer allotment of {STRING_MAX_BYTES} bytes.",
-                    start_line,
-                    start_col,
-                )
-            tokens.append(Token("STRING", value, start_line, start_col))
-            continue
-        if char.isdigit():
-            start = index
-            start_col = column
-            while index < length and source[index].isdigit():
-                index += 1
-                column += 1
-            tokens.append(Token("INT", int(source[start:index]), line, start_col))
-            continue
-        if char == "*":
-            tokens.append(Token("MUL", "*", line, column))
-            index += 1
-            column += 1
-            continue
-        if char.isalpha() or char == "_":
-            start = index
-            start_col = column
-            while index < length and (source[index].isalnum() or source[index] == "_"):
-                index += 1
-                column += 1
-            text = source[start:index]
-            if len(text) > IDENTIFIER_MAX:
-                raise LexError(
-                    f"Buffer overflow vulnerability detected! Identifier exceeds the "
-                    f"{IDENTIFIER_MAX}-character maximum bound.",
-                    line,
-                    start_col,
-                )
-            kinds = text if text in KEYWORDS else "IDENT"
-            tokens.append(Token(kinds, text, line, start_col))
-            continue
-        raise LexError(f"Unexpected character {char!r}.", line, column)
+    line_start = 0
+    index = 0
+    while index < len(source):
+        matched = False
+        for kind, pattern in _COMPILED:
+            match = pattern.match(source, index)
+            if match is None:
+                continue
+            matched = True
+            value = match.group(0)
+            column = index - line_start + 1
+            if kind == "WHITESPACE":
+                index = match.end()
+                break
+            if kind == "NEWLINE":
+                index = match.end()
+                line += 1
+                line_start = index
+                break
+            if kind == "COMMENT":
+                index = match.end()
+                break
+            if kind == "STRING":
+                text = _escape_string(value[1:-1])
+                if len(text.encode("utf-8")) > STRING_MAX_BYTES:
+                    raise LexError(
+                        f"Buffer overflow vulnerability detected! String size ({len(text.encode('utf-8'))} bytes) "
+                        f"exceeds safe buffer allotment of {STRING_MAX_BYTES} bytes.",
+                        line,
+                        column,
+                    )
+                tokens.append(Token("STRING", text, line, column))
+            elif kind == "INT":
+                tokens.append(Token("INT", int(value), line, column))
+            elif kind == "IDENT":
+                if len(value) > IDENTIFIER_MAX:
+                    raise LexError(
+                        f"Buffer overflow vulnerability detected! Identifier exceeds the "
+                        f"{IDENTIFIER_MAX}-character maximum bound.",
+                        line,
+                        column,
+                    )
+                kind = value if value in KEYWORDS else "IDENT"
+                tokens.append(Token(kind, value, line, column))
+            else:
+                tokens.append(Token(kind, value, line, column))
+            index = match.end()
+            break
+        if not matched:
+            if source[index] == '"':
+                raise LexError("Unterminated string literal.", line, index - line_start + 1)
+            raise LexError(f"Unexpected character {source[index]!r}.", line, index - line_start + 1)
     return tokens

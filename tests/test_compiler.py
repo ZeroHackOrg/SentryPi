@@ -173,6 +173,59 @@ class TestCompiler(unittest.TestCase):
         self.assertEqual(PHYSICAL_TO_BCM[18], 24)
         self.assertEqual(PHYSICAL_TO_BCM[23], 11)
 
+    def test_compile_loops_on_arm(self):
+        source = (
+            "LINK PIN 18 TO LED AS OUTPUT\n"
+            "REPEAT 3 TIMES\n"
+            "    LED HIGH\n"
+            "    DELAY 100 MS\n"
+            "    LED LOW\n"
+            "END\n"
+            "EVERY 1000 MS\n"
+            "    LED HIGH\n"
+            "END\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            result = compile_text(source, output_dir=tmp, name="loops")
+            self.assertTrue(result.ok)
+            with open(result.map_path) as handle:
+                listing = handle.read()
+                self.assertIn("LOOP", listing)
+                self.assertIn("TIMER", listing)
+                self.assertIn("JUMP", listing)
+            with open(result.sh_path) as handle:
+                self.assertIn("for __iter in $(seq 1 3)", handle.read())
+            with open(result.driver_path) as handle:
+                self.assertIn("for __iter in range(3)", handle.read())
+
+    def test_compile_analog_channel(self):
+        source = (
+            "LINK PIN 32 TO THERMISTOR AS ANALOG\n"
+            "ANALOG_READ THERMISTOR\n"
+            "DELAY 100 MS\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            result = compile_text(source, output_dir=tmp, name="analog")
+            self.assertTrue(result.ok)
+            with open(result.map_path) as handle:
+                self.assertIn("ANALOG", handle.read())
+            with open(result.driver_path) as handle:
+                self.assertIn("read_analog(32)", handle.read())
+
+    def test_threat_payload_warns_relaxed_and_blocks_hard(self):
+        source = (
+            "LINK PIN 18 TO LED AS OUTPUT\n"
+            'LOG "socket(AF_INET, SOCK_RAW) bind(0.0.0.0) port 4444"\n'
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            relaxed = compile_text(source, output_dir=tmp, name="relax")
+            self.assertTrue(relaxed.ok)
+            self.assertGreaterEqual(len(relaxed.threats), 1)
+            strict = compile_text(source, output_dir=tmp, name="strict", hard=True)
+            self.assertFalse(strict.ok)
+            self.assertGreaterEqual(strict.threat_count, 1)
+            self.assertIsNone(strict.bin_path)
+
 
 if __name__ == "__main__":
     unittest.main()

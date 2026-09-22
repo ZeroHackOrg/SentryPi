@@ -9,6 +9,7 @@ from .optimizer import optimize
 from .parser import Parser
 from .semantic_analyzer import SemanticAnalyzer
 from .static_analyzer import analyze
+from .threats import RULE_CVE_SIGNATURE, RULE_NETWORK_THREAT, scan_threats
 
 
 @dataclass
@@ -18,10 +19,14 @@ class CompileResult:
     warnings: list = field(default_factory=list)
     syntax_errors: list = field(default_factory=list)
     crypto_error: str = None
+    threats: list = field(default_factory=list)
+    target_id: str = "arm"
     bin_path: str = None
     map_path: str = None
     sh_path: str = None
     driver_path: str = None
+    ino_path: str = None
+    ll_path: str = None
     ir_count: int = 0
     opt_count: int = 0
     removed_count: int = 0
@@ -43,6 +48,8 @@ def compile_text(
     emit_map=True,
     emit_sh=True,
     emit_driver=True,
+    emit_ino=True,
+    emit_ll=True,
     master_key=None,
     hard=False,
     report=_no_report,
@@ -67,6 +74,19 @@ def compile_text(
         if provided is not None:
             say("Cryptographic Signature Verification... SKIPPED (no SENTRYPI_MASTER_KEY; dev mode).")
 
+    threat_issues = scan_threats(source_text)
+    for issue in threat_issues:
+        if (
+            hard
+            and issue.severity == "WARN"
+            and issue.rule in (RULE_NETWORK_THREAT, RULE_CVE_SIGNATURE)
+        ):
+            issue.severity = "ERROR"
+    result.threats = threat_issues
+    say(f"Scanning threat signatures... {len(threat_issues)} finding(s).")
+    for issue in threat_issues:
+        report(f"THREAT [Line {issue.line}]: {issue.message}")
+
     try:
         tokens = tokenize(source_text)
     except LexError as error:
@@ -84,11 +104,17 @@ def compile_text(
 
     semantic_issues = SemanticAnalyzer().analyze(program)
     firewall_issues = analyze(program, hard=hard)
-    errors = [issue for issue in firewall_issues if issue.severity == "ERROR"]
+    errors = [
+        issue
+        for issue in list(firewall_issues)
+        + [issue for issue in threat_issues if issue.severity == "ERROR"]
+        if issue.severity == "ERROR"
+    ]
     warnings = [
         issue
         for issue in list(semantic_issues)
         + [issue for issue in firewall_issues if issue.severity == "WARN"]
+        + [issue for issue in threat_issues if issue.severity == "WARN"]
     ]
 
     say("Running Semantic Analysis... Success.")
@@ -121,6 +147,7 @@ def compile_text(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     target = target_registry.get()
+    result.target_id = target.id
     say(f"Target backend: {target.name} "
         f"(id={target.id}, boards={', '.join(target.boards) or 'unknown'}).")
 
@@ -144,6 +171,16 @@ def compile_text(
         driver_path.write_text(target.synthesize_driver(program))
         result.driver_path = str(driver_path)
         say(f"Synthesizing high-speed /dev/gpiomem driver... Created '{result.driver_path}'")
+    if emit_ino and target.emits_ino and target.synthesize_ino:
+        ino_path = out_dir / f"{name}.ino"
+        ino_path.write_text(target.synthesize_ino(program))
+        result.ino_path = str(ino_path)
+        say(f"Synthesizing Arduino/ESP32 sketch... Created '{result.ino_path}'")
+    if emit_ll and target.emits_ll and target.synthesize_llvm:
+        ll_path = out_dir / f"{name}.ll"
+        ll_path.write_text(target.synthesize_llvm(program))
+        result.ll_path = str(ll_path)
+        say(f"Dumping illustrative LLVM-style IR... Created '{result.ll_path}'")
 
     say("Compilation complete. Safe for deployment.")
     result.ok = True
@@ -158,6 +195,8 @@ def compile_file(
     emit_map=True,
     emit_sh=True,
     emit_driver=True,
+    emit_ino=True,
+    emit_ll=True,
     master_key=None,
     hard=False,
     report=_no_report,
@@ -172,6 +211,8 @@ def compile_file(
         emit_map=emit_map,
         emit_sh=emit_sh,
         emit_driver=emit_driver,
+        emit_ino=emit_ino,
+        emit_ll=emit_ll,
         master_key=master_key,
         hard=hard,
         report=report,

@@ -32,6 +32,12 @@ jobs:
           sentryc examples/deploy.pi -o /tmp/sentry-build
           sentryc examples/smart_home.pi -o /tmp/sentry-build
           sentryc examples/living_room.pi -o /tmp/sentry-build
+          sentryc examples/scheduler.pi -o /tmp/sentry-build
+          sentryc examples/sensor_analog.pi -o /tmp/sentry-build
+          sentryc examples/net_threat.pi -o /tmp/sentry-build
+          SENTRYPI_TARGET=esp32 sentryc examples/scheduler.pi -o /tmp/sentry-esp
+          sentryc audit examples/net_threat.pi
+          sentryc audit --registry
 
       - name: Verify sysfs script + high-speed driver synthesis
         run: |

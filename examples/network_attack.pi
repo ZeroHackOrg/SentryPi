@@ -1,0 +1,11 @@
+# Enterprise fail-closed demonstration: a raw-socket network payload with a
+# port bind. Relaxed mode compiles with warnings; --hard refuses the build so
+# the artifact can never reach a production gate.
+#   sentryc examples/network_attack.pi                  (warnings, exit 0)
+#   sentryc --hard examples/network_attack.pi           (refused, exit 2)
+#   sentryc audit --hard examples/network_attack.pi     (refused, exit 2)
+LINK PIN 18 TO ALERT_LED AS OUTPUT
+ALERT_LED HIGH
+LOG "payload: socket(AF_INET, SOCK_RAW) 0.0.0.0; bind(0.0.0.0); sendto(...) port 4444"
+DELAY 100 MS
+ALERT_LED LOW

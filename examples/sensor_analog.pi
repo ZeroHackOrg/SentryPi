@@ -1,0 +1,26 @@
+# Analog telemetry loop: sample the thermistor channel through the ADC,
+# log every reading, and let a hardware comparator gate the cooling fan.
+# The ANALOG_READ primitive requires the channel to be declared AS ANALOG;
+# reading or writing a non-analog channel as analog is rejected.
+# Wiring: physical pin 32 (BCM 12) -> analog thermistor channel (ADC);
+#         physical pin 24 (BCM 8)  -> thermostat comparator input;
+#         physical pin 16 (BCM 23) -> cooling fan output.
+# Run it: sentryc examples/sensor_analog.pi
+LINK PIN 32 TO THERMISTOR AS ANALOG
+LINK PIN 24 TO THERMOSTAT_COMPARATOR AS INPUT
+LINK PIN 16 TO COOLING_FAN AS OUTPUT
+
+EVERY 500 MS
+    ANALOG_READ THERMISTOR
+    LOG "Sampling analog temperature channel."
+END
+
+ATOMIC
+    IF THERMOSTAT_COMPARATOR IS HIGH THEN
+        TRIGGER COOLING_FAN HIGH
+        LOG "Thermal threshold crossed. Engaging cooling loop."
+    END
+END
+
+DELAY 250 MS
+COOLING_FAN LOW

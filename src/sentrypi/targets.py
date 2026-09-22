@@ -15,6 +15,11 @@ from dataclasses import dataclass, field
 
 from . import target_arm
 
+try:
+    from . import target_esp32
+except ImportError:  # pragma: no cover - optional backend availability
+    target_esp32 = None
+
 DEFAULT_TARGET = "arm"
 TARGET_ENV = "SENTRYPI_TARGET"
 
@@ -35,10 +40,14 @@ class Target:
     emit_map: callable = None
     synthesize_bash: callable = None
     synthesize_driver: callable = None
+    synthesize_ino: callable = None
+    synthesize_llvm: callable = None
     emits_bin: bool = True
     emits_map: bool = True
     emits_sh: bool = True
     emits_driver: bool = True
+    emits_ino: bool = False
+    emits_ll: bool = False
     metadata: dict = field(default_factory=dict)
 
 
@@ -84,3 +93,26 @@ ARM = register(
         metadata={"physical_to_bcm": target_arm.PHYSICAL_TO_BCM},
     )
 )
+
+
+if target_esp32 is not None:
+    register(
+        Target(
+            id="esp32",
+            name="Espressif ESP32 (Xtensa LX6 / LX7)",
+            boards=("ESP32 DevKit V1", "ESP32-WROOM-32"),
+            emit=None,
+            emit_map=target_esp32.emit_map,
+            synthesize_bash=None,
+            synthesize_driver=None,
+            synthesize_ino=target_esp32.synthesize_ino,
+            synthesize_llvm=target_esp32.synthesize_llvm,
+            emits_bin=False,
+            emits_map=True,
+            emits_sh=False,
+            emits_driver=False,
+            emits_ino=True,
+            emits_ll=True,
+            metadata={"physical_to_gpio": target_esp32.PHYSICAL_TO_GPIO},
+        )
+    )

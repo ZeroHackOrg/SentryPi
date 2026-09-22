@@ -1,0 +1,12 @@
+# Audit demonstration: the telemetry payload embeds network threat signatures
+# and a hard-coded credential pattern. The relaxed firewall compiles with
+# warnings; enterprise mode refuses the artifact outright.
+#   sentryc audit examples/net_threat.pi            (findings listed, exit 0)
+#   sentryc audit --hard examples/net_threat.pi     (refused, exit 2)
+LINK PIN 18 TO INDICATOR_LED AS OUTPUT
+
+INDICATOR_LED HIGH
+LOG "telemetry: socket(AF_INET, SOCK_RAW) bind(0.0.0.0) port 4444"
+LOG "secret = \"hunter2\""
+DELAY 250 MS
+INDICATOR_LED LOW

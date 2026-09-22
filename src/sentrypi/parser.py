@@ -1,14 +1,18 @@
 from .ast_nodes import (
+    AnalogRead,
     Assign,
     AtomicBlock,
     Authenticate,
     Delay,
+    EveryBlock,
     ForceOverride,
     IfBlock,
     LinkPin,
     Log,
     Program,
+    RepeatBlock,
     Trigger,
+    WhileBlock,
 )
 
 
@@ -87,6 +91,14 @@ class Parser:
             return self.parse_log()
         if token.kind == "IF":
             return self.parse_if()
+        if token.kind == "REPEAT":
+            return self.parse_repeat()
+        if token.kind == "WHILE":
+            return self.parse_while()
+        if token.kind == "EVERY":
+            return self.parse_every()
+        if token.kind == "ANALOG_READ":
+            return self.parse_analog_read()
         if token.kind == "ATOMIC":
             return self.parse_atomic()
         if token.kind == "DELAY":
@@ -107,7 +119,7 @@ class Parser:
         mode = None
         if self.current() is not None and self.current().kind == "AS":
             self.advance()
-            mode = self.expect(("OUTPUT", "INPUT")).kind
+            mode = self.expect(("OUTPUT", "INPUT", "ANALOG")).kind
         return LinkPin(pin, target, mode, heading.line)
 
     def parse_assign(self):
@@ -143,18 +155,54 @@ class Parser:
         signature = self.expect("STRING").value
         return Authenticate(signature, heading.line)
 
-    def parse_atomic(self):
+    def parse_repeat(self):
         heading = self.current()
-        self.expect("ATOMIC")
+        self.expect("REPEAT")
+        count = self.expect("INT").value
+        self.expect("TIMES")
+        body = self._parse_block("REPEAT", heading.line)
+        return RepeatBlock(count, body, heading.line)
+
+    def parse_while(self):
+        heading = self.current()
+        self.expect("WHILE")
+        condition = self.expect("IDENT").value
+        if self.current() is not None and self.current().kind == "IS":
+            self.advance()
+        state = self.expect(("HIGH", "LOW")).kind
+        body = self._parse_block("WHILE", heading.line)
+        return WhileBlock(condition, body, heading.line, state)
+
+    def parse_every(self):
+        heading = self.current()
+        self.expect("EVERY")
+        ms = self.expect("INT").value
+        self.expect("MS")
+        body = self._parse_block("EVERY", heading.line)
+        return EveryBlock(ms, body, heading.line)
+
+    def parse_analog_read(self):
+        heading = self.current()
+        self.expect("ANALOG_READ")
+        target = self.expect("IDENT").value
+        return AnalogRead(target, heading.line)
+
+    def _parse_block(self, name, heading_line):
         body = []
         while True:
             token = self.current()
             if token is None:
-                raise ParseError("Expected END to close ATOMIC block.", heading.line)
+                raise ParseError(f"Expected END to close {name} block.", heading_line)
             if token.kind == "END":
                 self.advance()
                 break
             body.append(self.parse_statement())
+        return body
+
+    def parse_atomic(self):
+        heading = self.current()
+        self.expect("ATOMIC")
+        body = self._parse_block("ATOMIC", heading.line)
         return AtomicBlock(body, heading.line)
 
     def parse_if(self):
@@ -165,15 +213,7 @@ class Parser:
             self.advance()
         state = self.expect(("HIGH", "LOW")).kind
         self.expect("THEN")
-        body = []
-        while True:
-            token = self.current()
-            if token is None:
-                raise ParseError("Expected END to close IF block.", heading.line)
-            if token.kind == "END":
-                self.advance()
-                break
-            body.append(self.parse_statement())
+        body = self._parse_block("IF", heading.line)
         return IfBlock(condition, body, heading.line, state)
 
     def parse_force(self):

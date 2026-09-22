@@ -1,4 +1,18 @@
-from .ast_nodes import Assign, AtomicBlock, Authenticate, Delay, ForceOverride, IfBlock, LinkPin, Log, Trigger
+from .ast_nodes import (
+    AnalogRead,
+    Assign,
+    AtomicBlock,
+    Authenticate,
+    Delay,
+    EveryBlock,
+    ForceOverride,
+    IfBlock,
+    LinkPin,
+    Log,
+    RepeatBlock,
+    Trigger,
+    WhileBlock,
+)
 from .static_analyzer import SecurityIssue
 
 
@@ -52,6 +66,15 @@ class SemanticAnalyzer:
                     walk(statement.body, position)
                 elif isinstance(statement, AtomicBlock):
                     walk(statement.body, position)
+                elif isinstance(statement, RepeatBlock):
+                    walk(statement.body, position)
+                elif isinstance(statement, WhileBlock):
+                    check_reference(statement.condition, statement.line)
+                    walk(statement.body, position)
+                elif isinstance(statement, EveryBlock):
+                    walk(statement.body, position)
+                elif isinstance(statement, AnalogRead):
+                    check_reference(statement.target, statement.line)
                 elif isinstance(statement, Authenticate):
                     if position != 0:
                         issues.append(

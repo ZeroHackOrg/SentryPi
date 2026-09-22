@@ -1,0 +1,29 @@
+# Edge scheduler: bounded loops, a guarded while-task, and a periodic timer.
+# The language now supports three iteration control-flow shapes:
+#   REPEAT <N> TIMES ... END : fixed-count burst (with overflow guard)
+#   WHILE <pin> [IS] HIGH|LOW ... END : conditional task (TOCTOU-guarded)
+#   EVERY <N> MS ... END : cooperative periodic task (yields, never starves)
+# Wiring: physical pin 18 (BCM 24) -> status LED output;
+#         physical pin 24 (BCM 8)  -> door contact input.
+# Run it: sentryc examples/scheduler.pi
+LINK PIN 18 TO STATUS_LED AS OUTPUT
+LINK PIN 24 TO DOOR_SENSOR AS INPUT
+
+REPEAT 5 TIMES
+    STATUS_LED HIGH
+    DELAY 100 MS
+    STATUS_LED LOW
+    DELAY 100 MS
+END
+
+ATOMIC
+    WHILE DOOR_SENSOR IS HIGH
+        STATUS_LED HIGH
+        LOG "Door open. Holding status LED lit."
+    END
+END
+
+EVERY 1000 MS
+    STATUS_LED LOW
+    LOG "Scheduler heartbeat."
+END

@@ -1,10 +1,24 @@
-from .ast_nodes import Assign, AtomicBlock, Authenticate, Delay, ForceOverride, IfBlock, LinkPin, Trigger
+from .ast_nodes import (
+    AnalogRead,
+    Assign,
+    AtomicBlock,
+    Authenticate,
+    Delay,
+    EveryBlock,
+    ForceOverride,
+    IfBlock,
+    LinkPin,
+    RepeatBlock,
+    Trigger,
+    WhileBlock,
+)
 
 MAX_REGISTER_ALLOCATION = 256
 MAX_STRING_BYTES = MAX_REGISTER_ALLOCATION
 VALID_PIN_MIN = 1
 VALID_PIN_MAX = 40
 MAX_TOGGLES_WITHOUT_DELAY = 20
+MAX_LOOP_ITERATIONS = 1_000_000
 SYSTEM_COMPONENTS = {"SYSTEM_CLOCK", "SYSTEM_BUS"}
 PROTECTED_RESOURCES = {"SYSTEM_CLOCK", "SYSTEM_BUS", "KERNEL_REGISTERS"}
 
@@ -16,6 +30,8 @@ RULE_OVERFLOW = "overflow"
 RULE_PROTECTED = "protected_resource"
 RULE_TOCTOU = "toctou"
 RULE_OVERLOAD = "overload"
+RULE_ANALOG = "analog_unsafe"
+RULE_LOOP_BOUND = "loop_bound"
 
 
 class SecurityIssue:
@@ -47,9 +63,7 @@ class SentrySecurityFirewall:
         for statement in statements:
             if isinstance(statement, LinkPin):
                 self.linked[statement.target] = (statement.pin, statement.mode)
-            elif isinstance(statement, AtomicBlock):
-                self._index(statement.body)
-            elif isinstance(statement, IfBlock):
+            elif isinstance(statement, (AtomicBlock, IfBlock, RepeatBlock, WhileBlock, EveryBlock)):
                 self._index(statement.body)
 
     def _walk(self, statements, atomic_depth):
@@ -66,6 +80,20 @@ class SentrySecurityFirewall:
             elif isinstance(statement, IfBlock):
                 self._audit_if(statement, atomic_depth)
                 self._walk(statement.body, atomic_depth)
+            elif isinstance(statement, RepeatBlock):
+                self._audit_repeat(statement)
+                self.toggle_counts.clear()
+                self._walk(statement.body, atomic_depth)
+            elif isinstance(statement, WhileBlock):
+                self._audit_while(statement, atomic_depth)
+                self.toggle_counts.clear()
+                self._walk(statement.body, atomic_depth)
+            elif isinstance(statement, EveryBlock):
+                self._audit_every(statement)
+                self.toggle_counts.clear()
+                self._walk(statement.body, atomic_depth)
+            elif isinstance(statement, AnalogRead):
+                self._audit_analog(statement)
             elif isinstance(statement, ForceOverride):
                 self._audit_override(statement)
             elif isinstance(statement, Authenticate):
@@ -118,6 +146,15 @@ class SentrySecurityFirewall:
                     RULE_INPUT_WRITE,
                 )
             )
+        if mode == "ANALOG":
+            self.issues.append(
+                SecurityIssue(
+                    "ERROR",
+                    statement.line,
+                    f"Security Exception! Attempted to write a payload to analog sensor channel '{target}'.",
+                    RULE_INPUT_WRITE,
+                )
+            )
         if pin in self.RESERVED_SYSTEM_PINS:
             self.issues.append(
                 SecurityIssue(
@@ -137,6 +174,87 @@ class SentrySecurityFirewall:
                     f"Potential TOCTOU race: IF queries peripheral '{statement.condition}' "
                     f"outside an atomic hardware block. Wrap it in ATOMIC ... END.",
                     RULE_TOCTOU,
+                )
+            )
+
+    def _audit_repeat(self, statement):
+        if statement.count > MAX_LOOP_ITERATIONS:
+            self.issues.append(
+                SecurityIssue(
+                    "WARN",
+                    statement.line,
+                    f"Loop bound exceeded: REPEAT {statement.count} TIMES is unbounded work "
+                    f"(limit {MAX_LOOP_ITERATIONS}); task starvation risk.",
+                    RULE_LOOP_BOUND,
+                )
+            )
+        toggles = self._count_toggles(statement.body)
+        has_barrier = self._has_delay(statement.body)
+        if toggles and toggles * statement.count > MAX_TOGGLES_WITHOUT_DELAY and not has_barrier:
+            self.issues.append(
+                SecurityIssue(
+                    "WARN",
+                    statement.line,
+                    f"Current overload limit: REPEAT issues {toggles} toggles over "
+                    f"{statement.count} iterations with no DELAY safety barrier; "
+                    f"overcurrent risk. Insert DELAY <ms> MS in the loop body.",
+                    RULE_OVERLOAD,
+                )
+            )
+
+    def _count_toggles(self, statements):
+        return sum(
+            1
+            for statement in statements
+            if isinstance(statement, (Assign, Trigger))
+            and statement.target in self.linked
+        )
+
+    def _has_delay(self, statements):
+        for statement in statements:
+            if isinstance(statement, Delay):
+                return True
+            if isinstance(statement, (AtomicBlock, IfBlock, RepeatBlock, WhileBlock, EveryBlock)):
+                if self._has_delay(statement.body):
+                    return True
+        return False
+
+    def _audit_while(self, statement, atomic_depth):
+        if statement.condition in self.linked and atomic_depth == 0:
+            self.issues.append(
+                SecurityIssue(
+                    "WARN",
+                    statement.line,
+                    f"Potential TOCTOU race: WHILE polls peripheral '{statement.condition}' "
+                    f"outside an atomic hardware block. Wrap it in ATOMIC ... END.",
+                    RULE_TOCTOU,
+                )
+            )
+
+    def _audit_every(self, statement):
+        if statement.ms <= 0:
+            self.issues.append(
+                SecurityIssue(
+                    "WARN",
+                    statement.line,
+                    "Timer interval is 0 ms: the EVERY loop busy-waits with no yield; "
+                    "set a nonzero interval in ms.",
+                    RULE_LOOP_BOUND,
+                )
+            )
+
+    def _audit_analog(self, statement):
+        if statement.target not in self.linked:
+            return
+        pin, mode = self.linked[statement.target]
+        if mode != "ANALOG":
+            self.issues.append(
+                SecurityIssue(
+                    "ERROR",
+                    statement.line,
+                    f"Security Exception! ANALOG_READ targets '{statement.target}' declared as "
+                    f"{mode}; analog sampling requires LINK ... AS ANALOG.",
+                    RULE_ANALOG,
                 )
             )
 
@@ -185,7 +303,7 @@ class SentrySecurityFirewall:
             )
 
 
-HARD_ESCALATION_RULES = {RULE_TOCTOU, RULE_OVERLOAD}
+HARD_ESCALATION_RULES = {RULE_TOCTOU, RULE_OVERLOAD, RULE_LOOP_BOUND}
 
 
 def analyze(program, hard=False):

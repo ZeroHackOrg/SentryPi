@@ -70,6 +70,24 @@ class TestLexer(unittest.TestCase):
         self.assertIn("AUTHENTICATE", kinds)
         self.assertIn("END", kinds)
 
+    def test_control_flow_keywords(self):
+        tokens = tokenize("REPEAT 3 TIMES WHILE HIGH EVERY 500 MS ANALOG_READ AS ANALOG")
+        kinds = [token.kind for token in tokens]
+        self.assertIn("REPEAT", kinds)
+        self.assertIn("TIMES", kinds)
+        self.assertIn("WHILE", kinds)
+        self.assertIn("HIGH", kinds)
+        self.assertIn("EVERY", kinds)
+        self.assertIn("MS", kinds)
+        self.assertIn("ANALOG_READ", kinds)
+        self.assertIn("ANALOG", kinds)
+
+    def test_line_and_column_tracking(self):
+        tokens = tokenize("REPEAT 3 TIMES\n    LOG \"x\"\nEND")
+        log = next(token for token in tokens if token.kind == "LOG")
+        self.assertEqual(log.line, 2)
+        self.assertEqual(log.column, 5)
+
 
 if __name__ == "__main__":
     unittest.main()
