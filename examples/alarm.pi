@@ -1,0 +1,11 @@
+# Define physical hardware boundaries safely
+LINK PIN 18 TO TARGET_LED AS OUTPUT
+LINK PIN 23 TO MOTION_SENSOR AS INPUT
+
+# Event-driven secure execution inside an atomic hardware block (TOCTOU-safe)
+ATOMIC
+    IF MOTION_SENSOR IS HIGH THEN
+        TRIGGER TARGET_LED HIGH
+        LOG "Alert: Perimeter breach mitigated safely."
+    END
+END

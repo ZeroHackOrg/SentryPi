@@ -1,0 +1,3 @@
+# security_test.pi (Malicious payload simulation)
+LINK PIN 02 TO SYSTEM_CLOCK
+FORCE OVERRIDE BUFFER WITH "A" * 5000

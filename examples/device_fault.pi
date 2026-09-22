@@ -1,0 +1,7 @@
+# Smart Home fault trace: a corrupted / noise-flooded device stream (short
+# circuit, broken sensor, or data exploit) must NEVER reach the hardware.
+# The compile-time Safe-Fail firewall catches the oversized payload and
+# refuses to emit any binary — the appliance stays physically disengaged.
+# Run it: sentryc examples/device_fault.pi   (blocked, exit code 2)
+LINK PIN 18 TO SMART_DOOR_LOCK AS OUTPUT
+FORCE OVERRIDE SMART_DOOR_LOCK WITH "CORRUPTED_DATA_STREAM_NOISE" * 40000

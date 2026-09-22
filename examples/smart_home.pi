@@ -1,0 +1,30 @@
+# Smart Home Kit: full-featured lighting + security automation.
+# Combines multi-output control, sensor branches, atomic TOCTOU-safe
+# regions, and scheduling barriers — the wiring is in docs/HARDWARE-GUIDE.md.
+LINK PIN 18 TO LIVING_LIGHT AS OUTPUT
+LINK PIN 22 TO GARAGE_LIGHT AS OUTPUT
+LINK PIN 23 TO MOTION AS INPUT
+LINK PIN 24 TO DOOR_SENSOR AS INPUT
+
+LOG "Smart home kit armed."
+TRIGGER LIVING_LIGHT LOW
+TRIGGER GARAGE_LIGHT LOW
+DELAY 250 MS
+
+ATOMIC
+    IF MOTION HIGH THEN
+        TRIGGER LIVING_LIGHT HIGH
+        LOG "Motion detected: living light on."
+    END
+END
+
+DELAY 250 MS
+
+ATOMIC
+    IF DOOR_SENSOR LOW THEN
+        TRIGGER GARAGE_LIGHT HIGH
+        LOG "Door opened: garage light on."
+    END
+END
+
+LOG "Smart home automation idle."

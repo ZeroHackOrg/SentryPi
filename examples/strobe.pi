@@ -1,0 +1,31 @@
+# strobe.pi: demonstrates a current-overload hazard.
+# LED is toggled many times without a DELAY safety barrier.
+# Default: warning. Enterprise strict mode (--hard): rejected.
+LINK PIN 18 TO LED AS OUTPUT
+
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW
+LED HIGH
+LED LOW

@@ -1,0 +1,10 @@
+# Polling hardware inputs: motion-triggered response system (atomic, TOCTOU-safe).
+LINK PIN 23 TO MOTION_SENSOR AS INPUT
+LINK PIN 18 TO TARGET_LED AS OUTPUT
+
+ATOMIC
+    IF MOTION_SENSOR IS HIGH THEN
+        TRIGGER TARGET_LED HIGH
+        LOG "Motion detected."
+    END
+END

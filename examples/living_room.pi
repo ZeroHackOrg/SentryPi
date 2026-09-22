@@ -1,0 +1,14 @@
+# Living Room Kit: the normal, healthy smart-home automation state.
+# Compiles clean with zero firewall findings, emits all four artifacts, and
+# drives the appliance (green LED) once the sensor fires.
+# Wiring: physical pin 18 (BCM 24) -> appliance output;
+#         physical pin 23 (BCM 11) -> PIR/motion sensor input.
+LINK PIN 18 TO AC_COOLING_SYSTEM AS OUTPUT
+LINK PIN 23 TO MOTION_SENSOR AS INPUT
+
+ATOMIC
+    IF MOTION_SENSOR IS HIGH THEN
+        TRIGGER AC_COOLING_SYSTEM HIGH
+        LOG "Motion detected. Adjusting climate matrix safely."
+    END
+END

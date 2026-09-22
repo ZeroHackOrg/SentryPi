@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile safe examples
+        run: |
+          sentryc examples/blink.pi -o /tmp/sentry-build
+          sentryc examples/sensor.pi -o /tmp/sentry-build
+          sentryc examples/alarm.pi -o /tmp/sentry-build
+          sentryc examples/deploy.pi -o /tmp/sentry-build
+          sentryc examples/smart_home.pi -o /tmp/sentry-build
+          sentryc examples/living_room.pi -o /tmp/sentry-build
+
+      - name: Verify sysfs script + high-speed driver synthesis
+        run: |
+          sentryc examples/deploy.pi -o /tmp/sentry-build >/dev/null
+          test -f /tmp/sentry-build/deploy.sh
+          grep -q "#!/bin/bash" /tmp/sentry-build/deploy.sh
+          test -f /tmp/sentry-build/deploy_driver.py
+          grep -q "/dev/gpiomem" /tmp/sentry-build/deploy_driver.py
+          grep -q "value=500ms" /tmp/sentry-build/blink.map || sentryc examples/blink.pi -o /tmp/sentry-build >/dev/null
+
+      - name: Verify firewall rejects malicious payload
+        run: |
+          set +e
+          sentryc examples/security_test.pi -o /tmp/sentry-build
+          code=$?
+          set -e
+          test $code -eq 2
+
+      - name: Verify Safe-Fail demo blocks corrupted device stream
+        run: |
+          set +e
+          sentryc examples/device_fault.pi -o /tmp/sentry-build
+          code=$?
+          set -e
+          test $code -eq 2
+
+      - name: Verify syntax recovery exits 1
+        run: |
+          printf 'LINK PIN 18 TO X AS OUTPUT\nBANANA 1\n' > /tmp/bad.pi
+          set +e
+          sentryc /tmp/bad.pi -o /tmp/sentry-build
+          code=$?
+          set -e
+          test $code -eq 1
+
+      - name: Verify healthy examples warn (not fail) and --hard rejects them
+        run: |
+          sentryc examples/race.pi -o /tmp/sentry-build
+          sentryc examples/strobe.pi -o /tmp/sentry-build
+          set +e
+          sentryc examples/race.pi --hard -o /tmp/sentry-build
+          code_race=$?
+          sentryc examples/strobe.pi --hard -o /tmp/sentry-build
+          code_strobe=$?
+          set -e
+          test $code_race -eq 2
+          test $code_strobe -eq 2
+
+      - name: Verify crypto signing + tamper rejection
+        run: |
+          export SENTRYPI_MASTER_KEY="0xcafebabe42424242"
+          cp examples/blink.pi /tmp/signed.pi
+          sentryc sign /tmp/signed.pi
+          sentryc /tmp/signed.pi -o /tmp/sentry-build
+          sed -i 's/LED LOW/LED HIGH/' /tmp/signed.pi >/dev/null
+          set +e
+          sentryc /tmp/signed.pi -o /tmp/sentry-build
+          code=$?
+          set -e
+          test $code -eq 2

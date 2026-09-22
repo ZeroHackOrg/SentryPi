@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentrypi"
+version = "0.2.1"
+description = "Security-first DSL & compiler for Raspberry Pi IoT"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Geoffrey Geek", email = "geek@zerohack.org" }]
+keywords = ["compiler", "dsl", "iot", "raspberry-pi", "security", "static-analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Topic :: Security",
+    "Topic :: System :: Hardware",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Homepage = "https://zerohack.org"
+Repository = "https://github.com/ZeroHackOrg/SentryPi"
+
+[project.scripts]
+sentryc = "sentrypi.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

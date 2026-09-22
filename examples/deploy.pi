@@ -1,0 +1,13 @@
+# Full-power deployment: alias syntax + atomic event-driven control.
+LINK PIN 18 TO ALARM AS OUTPUT
+LINK PIN 23 TO PIR AS INPUT
+
+ATOMIC
+    IF PIR HIGH THEN
+        ALARM HIGH
+        LOG "Motion detected on perimeter."
+    END
+END
+
+ALARM LOW
+LOG "System armed and idle."

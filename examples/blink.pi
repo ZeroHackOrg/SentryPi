@@ -1,0 +1,8 @@
+# Standard safe hardware initialization: LED blink builder with safety delays.
+LINK PIN 18 TO TARGET_LED AS OUTPUT
+
+TRIGGER TARGET_LED HIGH
+DELAY 500 MS
+TRIGGER TARGET_LED LOW
+DELAY 500 MS
+LOG "Blink cycle complete."

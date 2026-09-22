@@ -1,0 +1,9 @@
+# race.pi: demonstrates a TOCTOU hazard.
+# The IF queries PIR outside an atomic hardware block.
+# Default: warning. Enterprise strict mode (--hard): rejected.
+LINK PIN 23 TO PIR AS INPUT
+LINK PIN 18 TO ALARM AS OUTPUT
+
+IF PIR HIGH THEN
+    ALARM HIGH
+END
