@@ -80,9 +80,9 @@ def _handle_compile(argv):
         return 2
     if result.syntax_errors:
         for error in result.syntax_errors:
-            print(f"❌ SYNTAX ERROR [Line {error.line}]: {error.message}")
+            print(f"SYNTAX ERROR [Line {error.line}]: {error.message}")
         plural = "s" if len(result.syntax_errors) != 1 else ""
-        print(f"⚠️  Compilation aborted. {len(result.syntax_errors)} syntax error{plural} discovered (panic-mode recovery).")
+        print(f"Compilation aborted. {len(result.syntax_errors)} syntax error{plural} discovered (panic-mode recovery).")
         return 1
     if not result.ok:
         return 2
@@ -110,7 +110,7 @@ def _handle_sign(argv):
 
     key = configured_key(args.key)
     if key is None:
-        print("❌ Signing requires a master key: pass --key or set SENTRYPI_MASTER_KEY.")
+        print("ERROR: signing requires a master key: pass --key or set SENTRYPI_MASTER_KEY.")
         return 1
 
     text = open(args.source, encoding="utf-8").read()
@@ -124,7 +124,7 @@ def _handle_sign(argv):
 
     print(f"[SentryPi] Signed with HMAC-SHA256: 0x{signature}")
     print(f"[SentryPi] AUTHENTICATE header written to '{output}'.")
-    print("🔒 Compile with the same key to verify source integrity.")
+    print("[SentryPi] Compile with the same key to verify source integrity.")
     return 0
 
 
@@ -137,7 +137,7 @@ def main(argv=None):
         try:
             return _handle_sign(argv[1:])
         except FileNotFoundError:
-            print(f"[SentryPi] Source file not found.")
+            print("ERROR: source file not found.")
             return 1
     if argv[0] == "serve":
         try:
@@ -152,10 +152,10 @@ def main(argv=None):
     try:
         return _handle_compile(argv)
     except FileNotFoundError:
-        print(f"❌ Source file not found: {argv[0]}")
+        print(f"ERROR: source file not found: {argv[0]}")
         return 1
     except LexError as error:
-        print(f"❌ Threat Vector Rejected [Line {error.line}]: {error.message}")
+        print(f"Threat Vector Rejected [Line {error.line}]: {error.message}")
         return 1
 
 

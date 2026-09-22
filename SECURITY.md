@@ -1,4 +1,4 @@
-# 🔒 Security Policy
+# Security Policy
 
 SentryPi is engineered to demonstrate **security-at-the-compilation-level**.
 This policy covers responsible disclosure, the supported security surface, and
@@ -8,8 +8,8 @@ the threat model for this repository.
 
 | Version | Supported |
 | :--- | :--- |
-| 0.2.x | ✅ Maintained |
-| 0.1.x | ⚠️ Critical issues only |
+| 0.2.x |  Maintained |
+| 0.1.x |  Critical issues only |
 
 ## Reporting a Vulnerability
 

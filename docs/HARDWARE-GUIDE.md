@@ -1,4 +1,4 @@
-# 🛠️ SentryPi Hardware Guide — Parts, Wiring, Deployment
+# SentryPi Hardware Guide — Parts, Wiring, Deployment
 
 Physical bring-up for the Raspberry Pi platform, from starter kit to a full
 Smart Home automation board.
@@ -47,7 +47,7 @@ numbers that reach the driver/sysfs:
 | 23 | BCM 11 | PIR motion input |
 | 24 | BCM 8 | door reed switch input |
 
-⚠️ Pins 1, 2, 4, 6, 9, 14, 20, 25, 30, 34, **39** are reserved (power/ground/
+ Pins 1, 2, 4, 6, 9, 14, 20, 25, 30, 34, **39** are reserved (power/ground/
 boot) and rejected by the firewall.
 
 ---
@@ -129,5 +129,5 @@ act transaction race-free and the toggle current safe by construction.
 | `cat: /sys/class/gpio/...`: Permission denied | sysfs export blocked | run as `gpio` user or `sudo` (script does both) |
 | LED never lights | anode/cathode reversed or no resistor | LED long leg → GPIO; add 220 Ω |
 | Sensor always reads HIGH/LOW | floating input | add pull-down (10 kΩ to GND) |
-| `.pi` won't compile | firewall sees a threat | read the `❌ COMPILE ERROR` line and fix, never bypass |
+| `.pi` won't compile | firewall sees a threat | read the ` COMPILE ERROR` line and fix, never bypass |
 | `exit=1` with panic-recovery lines | syntax errors | fix all reported lines, recompile |

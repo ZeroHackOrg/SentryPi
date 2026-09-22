@@ -64,13 +64,13 @@ class CryptoSignatureVerifier:
         payload, provided = extract_authenticate(source)
         if provided is None:
             raise SecurityException(
-                "🚨 COMPILE CRASH: Unsigned Source Code. SentryPi compiler requires "
+                "COMPILE BLOCKED: Unsigned Source Code. SentryPi compiler requires "
                 "verified developer cryptographic signatures (AUTHENTICATE WITH \"0x…\")."
             )
         expected = sign_payload(payload, self.secret_key)
         if not hmac.compare_digest(provided.lower(), expected.lower()):
             raise SecurityException(
-                "🚨 CRITICAL WARNING: Signature Mismatch! Firmware modification or "
+                "CRITICAL: Signature Mismatch! Firmware modification or "
                 "script injection attempt intercepted by ZeroHack Firewall."
             )
         return True

@@ -1,4 +1,4 @@
-# 🔐 SentryPi Enterprise Delivery — Confidentiality, Ownership & Product Security
+# SentryPi Enterprise Delivery — Confidentiality, Ownership & Product Security
 
 How to protect the value of SentryPi as an enterprise product **without** hiding
 behind security theater. Open source means the public repository is cloneable;
@@ -28,22 +28,22 @@ It relies on a layered model where:
 
 | Component | Public (MIT) | Proprietary / Licensed |
 | :--- | :--- | :--- |
-| DSL syntax (`.pi`) | ✅ | — |
-| Frontend (lexer, parser, `ATOMIC`, `DELAY`) | ✅ | — |
-| Security firewall (TOCTOU, overflow, hijack rules) | ✅ | — |
-| IR + optimizer | ✅ | — |
-| Raspberry Pi backends (`.bin`, `.map`, `.sh`, `/dev/gpiomem` driver) | ✅ | — |
-| HMAC signing (`sentryc sign`) | ✅ | — |
-| Web playground (`sentryc serve`) | ✅ | — |
-| Unit test suite | ✅ | — |
-| ESP32 / STM32 / Arduino backends | — | ✅ Closed, licensed SDK |
-| Native ARM register codegen (bare-metal, no Linux) | — | ✅ Closed, licensed SDK |
-| Asymmetric signatures (Ed25519 / X.509) | — | ✅ Closed, licensed SDK |
-| Custom memory-limit / compliance documentation packs | — | ✅ Closed, licensed SDK |
-| AI engine DSL integration | — | ✅ Closed, licensed SDK |
-| Per-device key binding / secure boot integration | — | ✅ Bespoke (Custom Integration) |
-| SLA support + 24/7 engineering | — | ✅ Enterprise tier |
-| Legacy system reverse-engineering | — | ✅ Bespoke (Custom Integration) |
+| DSL syntax (`.pi`) |  | — |
+| Frontend (lexer, parser, `ATOMIC`, `DELAY`) |  | — |
+| Security firewall (TOCTOU, overflow, hijack rules) |  | — |
+| IR + optimizer |  | — |
+| Raspberry Pi backends (`.bin`, `.map`, `.sh`, `/dev/gpiomem` driver) |  | — |
+| HMAC signing (`sentryc sign`) |  | — |
+| Web playground (`sentryc serve`) |  | — |
+| Unit test suite |  | — |
+| ESP32 / STM32 / Arduino backends | — |  Closed, licensed SDK |
+| Native ARM register codegen (bare-metal, no Linux) | — |  Closed, licensed SDK |
+| Asymmetric signatures (Ed25519 / X.509) | — |  Closed, licensed SDK |
+| Custom memory-limit / compliance documentation packs | — |  Closed, licensed SDK |
+| AI engine DSL integration | — |  Closed, licensed SDK |
+| Per-device key binding / secure boot integration | — |  Bespoke (Custom Integration) |
+| SLA support + 24/7 engineering | — |  Enterprise tier |
+| Legacy system reverse-engineering | — |  Bespoke (Custom Integration) |
 
 The MIT repo contains **zero** proprietary code. Anyone cloning the repo gets
 a fully working compiler — but only the public-core features.

@@ -1,4 +1,4 @@
-# 🛡️ SentryPi: Architecture Specification & Core Compiler Engine
+# SentryPi: Architecture Specification & Core Compiler Engine
 
 This document outlines the absolute full-power implementation details of the
 SentryPi Compiler (`sentryc`). It details how the engine signs, tokenizes,
@@ -12,7 +12,7 @@ security consulting via **[ZeroHack.org](https://zerohack.org)**.
 
 ---
 
-## 🏗️ 1. Complete Compiler Pipeline Architecture
+## 1. Complete Compiler Pipeline Architecture
 
 SentryPi reimagines the compilation chain by embedding an active **Static
 Security Firewall** between the analysis (Frontend) and synthesis (Backend)
@@ -40,7 +40,7 @@ deterministic optimizing backend.
 └─────────────┬─────────────────┘
               ▼  Annotated AST
 ┌───────────────────────────────┐
-│ 4. SECURITY FIREWALL           │  🔒 THE USP: drops compilation if threat
+│ 4. SECURITY FIREWALL           │   THE USP: drops compilation if threat
 └─────────────┬─────────────────┘  vectors are detected. `--hard` escalates
               ▼  Verified Safe AST     TOCTOU → overload to hard errors.
 ┌───────────────────────────────┐
@@ -76,7 +76,7 @@ Modules map 1:1 to these stages:
 
 ---
 
-## 📝 2. Frontend Specifications
+## 2. Frontend Specifications
 
 ### 2.a Regular Expressions & Token Definition (`lexer.py`)
 
@@ -139,7 +139,7 @@ Builds the symbol table and validates type/IO semantics:
 
 ---
 
-## 🔒 3. The Security Firewall (`static_analyzer.py`)
+## 3. The Security Firewall (`static_analyzer.py`)
 
 The parser produces an **Abstract Syntax Tree (AST) node array**. Before this
 structure reaches the backend, the AST is scanned by the custom security
@@ -177,7 +177,7 @@ attack-vector candidate on the auditor's desk.
 
 ---
 
-## ⚙️ 4. Backend Specifications & Synthesis
+## 4. Backend Specifications & Synthesis
 
 ### 4.a Intermediate Code Generation (IR, `ir.py`)
 
@@ -297,7 +297,7 @@ this endpoint.
 
 ---
 
-## 🧰 5. Developer Manual
+## 5. Developer Manual
 
 ### Development environment setup
 
@@ -347,7 +347,7 @@ export SENTRYPI_MASTER_KEY="0xcafebabe42424242"
 sentryc sign examples/alarm.pi -o signed_alarm.pi
 sentryc signed_alarm.pi              # Verified
 sed s/HIGH/LOW/ signed_alarm.pi > fake.pi
-sentryc fake.pi                      # 🚨 Signature Mismatch → exit 2
+sentryc fake.pi                      #  Signature Mismatch → exit 2
 ```
 
 ### Roadmap for open-source contributors
@@ -361,7 +361,7 @@ sentryc fake.pi                      # 🚨 Signature Mismatch → exit 2
 
 ---
 
-## 💼 6. B2B Commercial Inquiries & Consulting
+## 6. B2B Commercial Inquiries & Consulting
 
 `SentryPi` is engineered by **[ZeroHack.org](https://zerohack.org)** to
 demonstrate secure product design at the compilation level.

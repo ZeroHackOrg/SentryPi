@@ -1,4 +1,4 @@
-# 🚀 SentryPi Quickstart — Project Starting Guide
+# SentryPi Quickstart — Project Starting Guide
 
 Everything you need to go from `git clone` to a blinking LED, then to a full
 Smart Home automation kit. Hardware pieces and wiring live in
@@ -84,7 +84,7 @@ sentryc sign examples/blink.pi -o signed.pi
 sentryc signed.pi                       # Verified.
 ```
 
-Anyone editing `signed.pi` now hits `🚨 Signature Mismatch` → exit 2.
+Anyone editing `signed.pi` now hits ` Signature Mismatch` → exit 2.
 
 ## 6. Next Steps
 

@@ -1,189 +1,207 @@
-# SentryPi: A Security-First DSL & Compiler for Raspberry Pi IoT 🛡️🚀
+# SentryPi (.pi)
+
+**A security-first Domain-Specific Language and Compiler for Raspberry Pi IoT, smart-home automation, and edge computing.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Platform: Raspberry Pi](https://img.shields.io/badge/platform-Raspberry%20Pi-C51A4A.svg)](https://www.raspberrypi.com/)
-[![USP: Security Firewall](https://img.shields.io/badge/USP-Security%20Firewall-4B8BBE.svg)](#-the-security-firewall-usp)
-[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen.svg)](https://github.com/ZeroHackOrg/SentryPi)
-[![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)](#)
+[![Version](https://img.shields.io/badge/version-0.2.1-informational.svg)](#)
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB.svg)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-A22846.svg)](https://www.raspberrypi.com/)
+[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen.svg)](https://github.com/ZeroHackOrg/SentryPi/actions)
+[![Build](https://github.com/ZeroHackOrg/SentryPi/actions/workflows/ci.yml/badge.svg)](https://github.com/ZeroHackOrg/SentryPi/actions)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-SentryPi is an open-source, security-focused Domain-Specific Language (DSL) and
-Compiler built from scratch. It bridges the gap between high-level,
-human-friendly engineering software and low-level physical ARM hardware.
+SentryPi is an open-source DSL and compiler that lets users write smart-home and
+edge-automation rules in plain, human-readable English and compile them directly
+onto Raspberry Pi hardware. The compiler replaces the boilerplate of typical
+embedded Python projects (async I/O, networking stacks, sysfs bookkeeping) with a
+small deterministic language, while a built-in **static security firewall**
+rejects unsafe or corrupted logic at compile time — before any electrical signal
+reaches the physical hardware.
 
-While existing frameworks (like Flask or Paho-MQTT) force beginner IoT students
-to manage complex network stacks and write insecure code, SentryPi abstracts
-away the boilerplate while acting as a **compile-time firewall**. It scans,
-audits, and hardens your code *before a single electrical signal reaches your
-physical components* — and it can even **cryptographically verify** that the
-source is signed by an authorized developer.
-
----
-
-## 💡 The Core Innovation
-
-IoT devices are the weakest link in global infrastructure. Beginners
-accidentally write code vulnerable to buffer overflows, and open network ports
-leave hardware exposed to malicious register manipulation.
-
-SentryPi solves this at the **compilation level** — with a 9-stage pipeline
-that verifies identity and hardens code *before* synthesis:
-
-```mermaid
-flowchart TB
-    A["💻 Human .pi Code"] --> B
-    B["0️⃣ Crypto Verifier<br/>HMAC-SHA256 AUTHENTICATE gate"] --> C
-    B -. "🚨 unsigned / tampered" .-> X["⛔ Exit 2"]
-    C["1️⃣ Lexical Analyzer<br/>bounds: ident ≤ 32 · string ≤ 256B"] --> D
-    D["2️⃣ Syntax Analyzer<br/>LL(1) + panic-mode recovery"] --> E
-    E["3️⃣ Semantic Analyzer<br/>symbol table · IO-mode checks"] --> F
-    F["4️⃣ SECURITY FIREWALL 🔒<br/>TOCTOU · overload · hijack · overflow"] -. "threat detected" .-> X
-    F --> G
-    G["5️⃣ IR Generator<br/>TAC · ATOMIC flatten · DELAY · skip AUTH"] --> H
-    H["6️⃣ Code Optimizer<br/>redundant-write folding"] --> I
-    I["7️⃣ Code Generator<br/>ARM / Raspberry Pi backends"]
-    I --> BIN["<b>.bin</b> hardened mapping"]
-    I --> MAP["<b>.map</b> readable listing"]
-    I --> SH["<b>.sh</b> sysfs script"]
-    I --> DRV["<b>_driver.py</b> /dev/gpiomem mmap"]
-```
-
-By leveraging a custom **Static Analysis Security Pass** over the Abstract
-Syntax Tree (AST), the compiler explicitly drops any compilation attempt that
-contains unauthorized hardware pin access, unsanitized memory buffers,
-uninterruptible race conditions, or current-overload toggles — and only then
-lowers the verified AST to an optimizer-backed, hardware-targeted instruction
-stream.
-
-> 📖 Official documentation:
-> **Quickstart** — [docs/QUICKSTART.md](docs/QUICKSTART.md) ·
-> **Hackathon demo & pitch** — [docs/HACKATHON-DEMO.md](docs/HACKATHON-DEMO.md) ·
-> **Hardware** — [docs/HARDWARE-GUIDE.md](docs/HARDWARE-GUIDE.md) ·
-> **Specification** — [docs/SPEC.md](docs/SPEC.md) ·
-> **Architecture** — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
-> **FAQ & comparison** — [docs/FAQ.md](docs/FAQ.md) ·
-> **Porting & AI** — [docs/PORTING-AND-EXTENDING.md](docs/PORTING-AND-EXTENDING.md) ·
-> **Enterprise delivery** — [docs/ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md)
->
-> 🛡️ Security & governance: [SECURITY.md](SECURITY.md) (disclosure policy) ·
-> [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md) ·
-> [LICENSE](LICENSE) (MIT, © ZeroHack.org).
+Built from scratch by ZeroHack.org. No external dependencies, no framework glue,
+90+ unit tests.
 
 ---
 
-## 🚀 Getting Started
+## Table of Contents
 
-### Requirements
-
-- Python 3.9+
-
-### Installation (editable dev install)
-
-```bash
-$ git clone https://github.com/ZeroHackOrg/SentryPi.git
-$ cd sentrypi
-$ pip install -e .
-```
-
-This installs the `sentryc` compiler binary. Verify it:
-
-```bash
-$ sentryc --version
-sentryc 0.2.1 (SentryPi Security Compiler)
-```
-
-### Compile your first program
-
-```bash
-$ sentryc examples/blink.pi
-```
-
-Each safe compile emits **four** artifacts:
-
-- `blink.bin` — the hardened execution mapping for the Pi GPIO controller.
-- `blink.map` — a human-readable record-by-record listing (see the [map format](docs/SPEC.md)).
-- `blink.sh` — a deployable `#!/bin/bash` script that writes straight to `/sys/class/gpio` (BCM numbering), with no Python/Javascript runtime.
-- `blink_driver.py` — a high-speed `mmap("/dev/gpiomem")` GPIO driver for latency-critical deployments.
-
-Every build also reports its **TAC instruction count** and **optimizer savings**
-(e.g. redundant writes folded to reduce physical I/O wear).
-
-### Quickstart & Hardware
-
-New here? Follow [docs/QUICKSTART.md](docs/QUICKSTART.md) (zero-hardware
-sandbox → first compile → signed CI gate) and [docs/HARDWARE-GUIDE.md](docs/HARDWARE-GUIDE.md).
-
-**Required hardware** (see the full table in the guide):
-
-| Starter kit (`blink.pi`) | Smart Home kit (`smart_home.pi`) |
-| :--- | :--- |
-| Raspberry Pi 4B **or** 5 · 5V/3A PSU · 16GB+ microSD · breadboard · jumpers | everything left, plus: |
-| 2× LED, 2× 220 Ω resistors | PIR motion sensor (pin 23), reed/magnetic door switch (pin 24), 2× 10 kΩ pull-downs, 2nd LED (pin 22) |
-
-**Hackathon rig (2 LEDs only):** green → BCM GPIO 18, red → BCM GPIO 23, two
-220 Ω resistors. Compile `living_room.pi` (green on = appliance running) and
-`device_fault.pi` (blocked by the firewall, red on = Safe-Fail lockdown).
-Full pitch script, trace-by-trace demo, and the domain pitch matrix are in
-[docs/HACKATHON-DEMO.md](docs/HACKATHON-DEMO.md).
-
-Compile + deploy on the Pi:
-
-```bash
-sentryc examples/blink.pi        # emits blink.bin/.map/.sh/_driver.py
-sudo bash blink.sh               # sysfs path
-sudo python3 blink_driver.py     # /dev/gpiomem mmap path
-```
-
-### Language in one screen
-
-```
-statement := LINK PIN <int> TO <name> [AS OUTPUT|INPUT]  # declare hardware
-           | <name> HIGH|LOW                             # assign an output (alias syntax)
-           | TRIGGER <name> HIGH|LOW                     # drive an output
-           | LOG <string>                                # emit a log line
-           | DELAY <int> MS                              # scheduling barrier
-           | IF <name> [IS] HIGH|LOW THEN ... END              # event-driven branch
-           | ATOMIC ... END                              # race-free hardware block
-           | AUTHENTICATE WITH "<hex>"                   # HMAC-SHA256 signature (line 1)
-           | FORCE OVERRIDE <resource> WITH <string> [* <int>]   # (blocked by firewall)
-```
-
-### Run the test suite
-
-```bash
-$ python -m unittest discover -s tests -v
-```
+- [The Problem](#the-problem)
+- [The Solution](#the-solution)
+- [Use Cases](#use-cases)
+- [The Gap We Close](#the-gap-we-close)
+- [How It Works](#how-it-works)
+- [The Language](#the-language)
+- [The Security Firewall](#the-security-firewall)
+- [Cryptographic Source Signing](#cryptographic-source-signing)
+- [Backends and Artifacts](#backends-and-artifacts)
+- [Command Line](#command-line)
+- [Repository Layout](#repository-layout)
+- [Getting Started](#getting-started)
+- [Documentation](#documentation)
+- [Extending and Porting](#extending-and-porting)
+- [Contribute](#contribute)
+- [Sponsor SentryPi](#sponsor-sentrypi)
+- [Enterprise Model](#enterprise-model)
+- [Security](#security)
+- [Roadmap](#roadmap)
+- [References](#references)
+- [Contact](#contact)
+- [License](#license)
 
 ---
 
-## 🛠️ Human-Friendly Syntax Example
+## The Problem
 
-Say goodbye to 30 lines of complex, multi-library Python initializations. Here
-is how a beginner writes a secure automated response system in SentryPi
-(`alarm.pi`):
+Physical automation — smart homes, agricultural controllers, industrial
+sensors, education kits — is held back by the same failures, everywhere:
+
+1. **Automation is fragmented and hard.** Wiring a motion sensor to an air
+   conditioner or smart lock normally means async Python, HTTP servers, and
+   thread management. Most makers, students, and domain experts never cross
+   that barrier.
+2. **Hand-written GPIO code is unsafe by default.** Buffer overflows, unsafe
+   register writes, overcurrent toggles, and race conditions ship silently.
+   A damaged sensor or a corrupted data stream can freeze an appliance, a
+   valve, or a vehicle.
+3. **There is no supply-chain trust.** Nothing proves who authored the code
+   that ends up driving physical machinery — a real liability for
+   manufacturers who must now comply with security-by-design regulation
+   (for example the EU Cyber Resilience Act).
+
+Existing tools respond after the fact: SAST scanners, firmware emulators, or
+binary extractors analyze code *after* it is already written. The failures
+they find have typically already shipped.
+
+---
+
+## The Solution
+
+SentryPi moves safety into the **compilation phase**. Users write automation
+in a tiny, validated plain-English grammar; a 9-stage pipeline verifies
+identity, structure, and safety *before* any code is generated:
+
+- **Safe by construction.** The compiler rejects buffer overflows, reserved-pin
+  hijacks, system-component writes, TOCTOU races, and overcurrent toggles with
+  the exact line and rule — and emits **zero artifacts** when it does.
+- **Edge-native.** A Raspberry Pi compiles text straight into direct,
+  memory-mapped GPIO instructions (sysfs or `/dev/gpiomem`) — no servers, no
+  frameworks, no interpreter bloat.
+- **Auditable supply chain.** Optional HMAC-SHA256 source signing proves each
+  program was authored by an authorized developer; tampering is stopped at the
+  gate.
+- **Zero dependencies.** The entire compiler runs on the Python standard
+  library.
+
+---
+
+## Use Cases
+
+| Domain | The everyday reality | What SentryPi provides |
+| :--- | :--- | :--- |
+| Smart homes | connected components lock or crash when a sensor breaks | safe-fail compilation isolates the faulty device without freezing the home |
+| Agri-tech and drones | operators don't know C/C++ and automation stays out of reach | plain-English control mapping (`LINK PIN 18 TO WATER_VALVE`) |
+| Education | students learn system design on live hardware | a safe sandbox: dangerous programs are rejected before deployment |
+| Edge / AI | agents actuate hardware from model output | data structures are verified pre-deployment; actuators are gated by the firewall |
+
+---
+
+## The Gap We Close
+
+Most IoT devices fail because of complex frameworks and poor input
+validation [1, 7]. Where the industry relies on write-first, scan-later
+tooling, SentryPi makes development and security a single, unified step:
+
+| | The status quo | The SentryPi framework |
+| :--- | :--- | :--- |
+| Workflow | write complex Python, Flask, or C, then buy a secondary tool (e.g. a SAST scanner) to find bugs | development and security are unified in one tool |
+| Supply chain | no source of truth for who wrote what | mandatory HMAC-SHA256 developer signatures |
+| Input handling | manual sanitization, easy to get wrong | native input sanitization, register locks, and pointer analysis |
+| Failure mode | an insecure script ships and bugs surface later | the compiler structurally rejects or refuses to emit the executable |
+
+A developer cannot accidentally ship an insecure script: the pipeline either
+changes the unsafe form or refuses to emit it [1, 5, 8].
+
+---
+
+## How It Works
 
 ```
-# Define physical hardware boundaries safely
-LINK PIN 18 TO TARGET_LED AS OUTPUT
+┌──────────────┐   ┌──────────────┐   ┌───────────────────┐   ┌──────────────────┐
+│ .pi source   │──▶│ 1. Lexer     │──▶│ 2. Parser (LL(1)) │──▶│ 3. Semantic      │
+│ (plain text) │   │ tokenization │   │ panic-mode recovery│  │ analyzer         │
+└──────────────┘   └──────────────┘   └───────────────────┘   └────────┬─────────┘
+                                                                        │
+                                                       ┌────────────────▼─────────┐
+                                                       │ 4. SECURITY FIREWALL     │
+                                                       │ overflow / hijack / lock │
+                                                       │ TOCTOU / overload        │
+                                                       └────────────────┬─────────┘
+                                                                        │ (clean)
+                              ┌─────────────────────────┬───────────────┘
+                              ▼                         ▼
+                  ┌──────────────────────┐   ┌──────────────────────┐
+                  │ 5. IR (three-address │   │ 6. Optimizer          │
+                  │ code) / ATOMIC flatten│  │ redundant-write fold  │
+                  └──────────┬───────────┘   └──────────┬───────────┘
+                             ▼                          ▼
+                  ┌──────────────────────────────────────────────┐
+                  │ 7. Code Generator (pluggable backend)         │
+                  │ .bin hardened mapping / .map listing / .sh    │
+                  │ sysfs script / _driver.py /dev/gpiomem mmap   │
+                  └──────────────────────────────────────────────┘
+```
+
+Every compile that *fails* the firewall reports the exact line and rule and
+**zero artifacts are emitted** — the hardware is untouched.
+
+| Stage | Module | Outcome |
+| :--- | :--- | :--- |
+| 0 | `crypto.py` | HMAC-SHA256 source verification (`AUTHENTICATE` header) |
+| 1 | `lexer.py` | Tokens; rejects identifiers > 32 chars and strings > 256 B |
+| 2 | `parser.py` | AST; recursive-descent with panic-mode recovery |
+| 3 | `semantic_analyzer.py` | Warnings for unknown / duplicate references |
+| 4 | `static_analyzer.py` | Security Firewall; errors block compilation |
+| 5 | `ir.py` | Three-address code (`ALLOC_PIN`, `WRITE_BIT`, `BRANCH`, ...) |
+| 6 | `optimizer.py` | Redundant-write folding, duplicate-allocation removal |
+| 7+ | `target_arm.py` | Code generation (.bin / .map / .sh / _driver.py) |
+
+---
+
+## The Language
+
+A `.pi` file is a list of plain-English statements:
+
+```
+statement := LINK  PIN <int> TO <name> [AS OUTPUT|INPUT]   # declare hardware
+           | <name> HIGH|LOW                               # alias write
+           | TRIGGER <name> HIGH|LOW                       # drive an output
+           | LOG <string>                                  # log line
+           | DELAY <int> MS                                # scheduling barrier
+           | IF <name> [IS] HIGH|LOW THEN ... END          # event branch
+           | ATOMIC ... END                                # race-free block
+           | AUTHENTICATE WITH "<hex>"                     # signature (line 1)
+           | FORCE OVERRIDE <resource> WITH <string> [* <int>]  # blocked by firewall
+```
+
+A complete, working example (`examples/living_room.pi`):
+
+```
+LINK PIN 18 TO AC_COOLING_SYSTEM AS OUTPUT
 LINK PIN 23 TO MOTION_SENSOR AS INPUT
 
-# Event-driven secure execution inside an atomic hardware block
 ATOMIC
     IF MOTION_SENSOR IS HIGH THEN
-        TRIGGER TARGET_LED HIGH
-        LOG "Alert: Perimeter breach mitigated safely."
+        TRIGGER AC_COOLING_SYSTEM HIGH
+        LOG "Motion detected. Adjusting climate matrix safely."
     END
 END
 ```
 
-### Compiling and Running
-
-The system utilizes a dedicated compilation binary engine (`sentryc`):
+Compile it:
 
 ```
-# Compile the safe source file
-$ sentryc alarm.pi
+$ sentryc examples/living_room.pi -o build
 
-# Resulting output
 [SentryPi] Scanning tokens... Success.
 [SentryPi] Building Abstract Syntax Tree... Success.
 [SentryPi] Running Semantic Analysis... Success.
@@ -191,142 +209,120 @@ $ sentryc alarm.pi
 [SentryPi] Generating Intermediate Representation... 8 TAC instructions.
 [SentryPi] Optimizing instruction schedule... 8 instructions (0 redundant removed).
 [SentryPi] Target backend: Raspberry Pi ARM (BCM2835 / BCM2711 / RP1) (id=arm, boards=Raspberry Pi 4B, Raspberry Pi 5).
-[SentryPi] Emitting hardened execution mapping... Created 'alarm.bin'
-[SentryPi] Writing readable map listing... Created 'alarm.map'
-[SentryPi] Synthesizing deployable sysfs script... Created 'alarm.sh'
-[SentryPi] Synthesizing high-speed /dev/gpiomem driver... Created 'alarm_driver.py'
+[SentryPi] Emitting hardened execution mapping... Created 'build/living_room.bin'
+[SentryPi] Writing readable map listing... Created 'build/living_room.map'
+[SentryPi] Synthesizing deployable sysfs script... Created 'build/living_room.sh'
+[SentryPi] Synthesizing high-speed /dev/gpiomem driver... Created 'build/living_room_driver.py'
 [SentryPi] Compilation complete. Safe for deployment.
 ```
 
 ---
 
-## 🔒 The Security Firewall (USP)
+## The Security Firewall
 
-If a malicious contributor or a student introduces a payload that risks an
-overcurrent or memory injection, SentryPi stops it cold:
+The firewall (`static_analyzer.py`) walks the AST and blocks any program that
+moves outside safe hardware boundaries:
+
+| Rule | Severity | Trigger |
+| :--- | :--- | :--- |
+| Reserved-pin hijack | ERROR | `LINK` to `1, 2, 4, 6, 9, 14, 20, 25, 30, 34, 39` |
+| Invalid pin | ERROR | pin outside the physical 40-pin header |
+| System-component lock | ERROR | `LINK` to `SYSTEM_CLOCK` / `SYSTEM_BUS` |
+| Input write | ERROR | writing a payload to an `INPUT` peripheral |
+| Buffer overflow | ERROR | `FORCE OVERRIDE` effective size > 256 bytes |
+| Lexical bounds | ERROR | identifier > 32 chars, string > 256 bytes |
+| TOCTOU race | WARN -> ERROR under `--hard` | `IF` reads a peripheral outside `ATOMIC` |
+| Current overload | WARN -> ERROR under `--hard` | > 20 pin toggles without a `DELAY` barrier |
+
+Decision flow:
 
 ```
-# security_test.pi (Malicious payload simulation)
-LINK PIN 02 TO SYSTEM_CLOCK
-FORCE OVERRIDE BUFFER WITH "A" * 5000
+source.pi --> has signature (when a key is set)?
+   |-- no / mismatch --> atexit 2 (blocked)
+   |-- yes --> lex -> parse --> firewall check
+                          |-- error --> atexit 2
+                          |-- warn (TOCTOU / overload)
+                          |     |-- --hard? --> atexit 2
+                          |     |-- default  --> emit
+                          |-- clean --> emit
+```
 
-$ sentryc security_test.pi
+A hostile source is rejected with the exact failing line and rule:
+
+```
+$ sentryc examples/device_fault.pi
 
 [SentryPi] Running Static Security Firewall...
-❌ COMPILE ERROR [Line 2]: Security Exception! System Threat Detected! Attempted hijack of Reserved Pin 02.
-❌ COMPILE ERROR [Line 3]: Buffer overflow vulnerability detected! String size (5000 bytes) exceeds safe buffer allotment of 256 bytes.
-⚠️  Compilation aborted. Physical hardware protected.
+COMPILE ERROR [Line 7]: Buffer overflow vulnerability detected! String size
+   (1080000 bytes) exceeds safe buffer allotment of 256 bytes.
+Compilation aborted. Physical hardware protected.
 ```
 
-### Audit Rules (what the firewall blocks)
-
-| Vector | Rule |
-| :--- | :--- |
-| 🚨 Hardware privilege escalation | `LINK` to a reserved power/ground pin (`1, 2, 4, 6, 9, 14, 20, 25, 30, 34, 39`) |
-| 🚨 Invalid pin | pin outside the physical 40-pin header |
-| 🚨 System component lock | `LINK` to `SYSTEM_CLOCK` / `SYSTEM_BUS` |
-| 🚨 Logic manipulation | writing a payload to an `INPUT` peripheral |
-| 🚨 Memory injection | `FORCE OVERRIDE` effective size > 256 bytes |
-| 🚨 Lexical bounds | identifier > 32 chars, string > 256 bytes (rejected at scan) |
-| 🚨 **TOCTOU race** | `IF` queries a peripheral outside an `ATOMIC` block (error under `--hard`) |
-| 🚨 **Current overload** | > 20 pin toggles with no `DELAY` barrier (error under `--hard`) |
-
-```mermaid
-flowchart LR
-    S["source.pi"] --> V{has signature?}
-    V -- "no / bad (key set)" --> R["⛔ exit 2"]
-    V -- "yes" --> L["lex → parse"]
-    L --> F{firewall}
-    F -- "error" --> R
-    F -- "warn (TOCTOU / overload)" --> H{--hard?}
-    H -- "yes" --> R
-    H -- "no" --> E["emit 🔒"]
-    F -- "clean" --> E
-```
-
-Warnings (unknown component, duplicate link/pin) are reported but never block
-execution in default mode. `--hard` switches the auditor into **enterprise
-strict mode**:
-
-```
-$ sentryc examples/race.pi --hard
-[SentryPi] Running Static Security Firewall...
-❌ COMPILE ERROR [Line 7]: Potential TOCTOU race: IF queries peripheral 'PIR' outside an atomic hardware block. Wrap it in ATOMIC ... END.
-⚠️  Compilation aborted. Physical hardware protected.
-```
+Warnings (unknown component, duplicate link/pin) are printed but never block
+compilation in default mode. `--hard` upgrades the two concurrency rules above
+into hard errors for enterprise strict-mode builds.
 
 ---
 
-## 🔐 Cryptographic Source Signing
+## Cryptographic Source Signing
 
-SentryPi can require that every source be signed by an authorized developer
-before it compiles. Signing uses **HMAC-SHA256** with a master key:
+SentryPi can require every source to be signed by an authorized developer
+before it compiles:
 
-```mermaid
-flowchart LR
-    K["🔑 master key<br/>(--key or SENTRYPI_MASTER_KEY)"] --> S["sentryc sign"]
-    S --> P["AUTHENTICATE WITH \"0x<digest>\"<br/>+ payload"] --> C["sentryc"]
-    C --> ok["✔ Source Verified"] or bad["🚨 Signature Mismatch → exit 2"]
+- Supply a master key via `--key <hex|passphrase>` or the
+  `SENTRYPI_MASTER_KEY` environment variable.
+- `sentryc sign file.pi` prepends `AUTHENTICATE WITH "0x<hmac-sha256>"` and is
+  idempotent (it re-signs the payload).
+- With a key configured, unsigned or tampered sources are rejected with
+  `Signature Mismatch` and exit code 2.
+- Without a key, verification is skipped (developer mode), so example sources
+  stay portable.
+
 ```
-
-```
-# sign once
 $ export SENTRYPI_MASTER_KEY="0xcafebabe42424242"
 $ sentryc sign alarm.pi -o signed_alarm.pi
 [SentryPi] Signed with HMAC-SHA256: 0x732078172c235c422ed47f4fa9bd2a7958f6aecdbb7e3f546cdd1983541918b8
 [SentryPi] AUTHENTICATE header written to 'signed_alarm.pi'.
-🔒 Compile with the same key to verify source integrity.
 
-# tampering is stopped at the gate
 $ sed 's/HIGH/LOW/' signed_alarm.pi > fake.pi
 $ sentryc fake.pi
 [SentryPi] Cryptographic Signature Verification... FAIL.
-🚨 🚨 CRITICAL WARNING: Signature Mismatch! Firmware modification or script injection attempt intercepted by ZeroHack Firewall.
-```
-
-Without a key configured, signing is skipped (developer mode), keeping the
-example sources portable.
-
----
-
-## 🧠 Panic-Mode Syntax Recovery
-
-Errors never crash the pipeline. The parser records **every** syntax error in a
-file, then the build aborts with the full count:
-
-```
-$ sentryc /tmp/bad.pi
-[SentryPi] Scanning tokens... Success.
-[SentryPi] Building Abstract Syntax Tree... FAIL.
-❌ SYNTAX ERROR [Line 2]: Expected one of HIGH, LOW but found 1.
-⚠️  Compilation aborted. 1 syntax error discovered (panic-mode recovery).
-          (exit code 1)
+CRITICAL: Signature Mismatch! Firmware modification or script injection
+attempt intercepted by ZeroHack Firewall.
 ```
 
 ---
 
-## ⚡ High-Speed `/dev/gpiomem` Backend
+## Backends and Artifacts
 
-The `_driver.py` artifact maps the BCM GPIO peripheral registers straight into
-Python via `mmap`, skipping sysfs for low-latency designs:
+Code generation is selected through an in-process registry
+(`targets.py`). Each backend declares which artifacts it can produce; the
+default `arm` target emits four:
+
+| Artifact | Description |
+| :--- | :--- |
+| `.bin` | hardened execution mapping (`MAGIC "SPI1"`, opcode records) |
+| `.map` | human-readable, record-by-record listing |
+| `.sh`  | self-contained `#!/bin/bash` sysfs script (`/sys/class/gpio`, BCM numbering) |
+| `_driver.py` | zero-dependency `mmap("/dev/gpiomem")` driver for low-latency deployments |
+
+Select a backend with `SENTRYPI_TARGET`; unknown targets fail with the list of
+registered ids:
 
 ```
-GPIO window  (mmap /dev/gpiomem, 4096 B, O_SYNC)
-├── GPFSEL  0x00  → set_pin_mode(pin, mode)
-├── GPSET   0x1C  → write_pin(pin, 1)
-├── GPCLR   0x28  → write_pin(pin, 0)
-└── GPLEV   0x34  → read_pin(pin)
+$ SENTRYPI_TARGET=arm sentryc examples/alarm.pi -o build
+$ SENTRYPI_TARGET=esp32 sentryc app.pi
+KeyError: Unknown architecture target 'esp32'. Registered targets: arm.
 ```
 
-Physical pins are mapped to BCM GPIO through `PHYSICAL_TO_BCM`
-(e.g. physical 18 → BCM 24). `FORCE OVERRIDE` is never synthesized in any
-backend.
+Physical pins are mapped to BCM GPIO through `PHYSICAL_TO_BCM` (e.g. physical
+pin 18 -> BCM 24). `FORCE OVERRIDE` is never synthesized in any backend. The
+registry exists so ESP32, STM32, Arduino, and LLVM backends can be added as
+licensed plugins without touching the compiler core.
 
 ---
 
-## 🧪 Developer Manual
-
-### CLI Reference
+## Command Line
 
 ```
 usage: sentryc [-h] [-o OUTPUT_DIR] [--no-bin] [--no-map] [--no-sh]
@@ -338,349 +334,256 @@ subcommands:
 
 environment:
   SENTRYPI_MASTER_KEY    master signing key (hex or passphrase)
-  SENTRYPI_TARGET        backend target id (default: arm; see registry below)
+  SENTRYPI_TARGET        backend target id (default: arm)
 
 exit codes:
   0  compiled successfully
-  1  lexical / syntax / I/O error (threat vector rejected at scan)
-  2  blocked by Security Firewall or cryptographic verification failure
+  1  lexical / syntax / I/O error
+  2  blocked by Security Firewall or signature verification failure
 ```
 
 | Flag | Effect |
 | :--- | :--- |
 | `-o DIR` | output directory for artifacts |
 | `--no-bin` / `--no-map` / `--no-sh` / `--no-driver` | skip individual artifacts |
-| `--hard` | escalate TOCTOU/overload warnings into errors |
+| `--hard` | escalate TOCTOU / overload warnings into errors |
 | `--key <hex\|passphrase>` | master signing key (overrides env) |
 
-### Backend registry
-
-Hardware code generation is pluggable through an in-process registry
-(`src/sentrypi/targets.py`). Backends declare which artifacts they can emit
-(`.bin` / `.map` / `.sh` / `<name>_driver.py`) and are selected with
-`SENTRYPI_TARGET`:
-
-```bash
-SENTRYPI_TARGET=arm sentryc examples/alarm.pi -o build   # Raspberry Pi (default)
-```
-
-The default `arm` target targets BCM2835 / BCM2711 / RP1. Third-party and
-enterprise backends (ESP32, STM32, Arduino, LLVM) register a `Target` with
-`targets.register(...)` before invoking the compiler — no pipeline changes
-required (see `docs/PORTING-AND-EXTENDING.md` and
-`docs/ENTERPRISE-DELIVERY.md`).
-
-### Web Playground
-
-`sentryc serve` starts a localhost editor that runs the full pipeline in a
-browser and streams back identical `sentryc` output — a great teaching tool and
-a demo centerpiece (containerize it in production).
-
-### Development workflow
-
-```bash
-python3 -m venv venv && source venv/bin/activate && pip install -e .
-
-python -m unittest discover -s tests -v     # 92 passing tests
-sentryc examples/alarm.pi                   # full pipeline smoke test
-sentryc examples/race.pi --hard             # firewall strict-mode check
-```
+`sentryc serve` launches a localhost web editor that runs the full pipeline in
+a browser — ideal as a teaching tool or a demo centerpiece (containerize it in
+production).
 
 ---
 
-## 🧩 Expand, Integrate & Go AI
-
-SentryPi is built for growth — the backend is a **registry**, so new hardware
-targets plug in without touching the pipeline.
-
-- **Support other IoT frameworks** (ESP32, STM32, Arduino): implement the four
-  `Target` hooks, `targets.register(...)`, then
-  `SENTRYPI_TARGET=esp32 sentryc app.pi`. The firewall + crypto + optimizer run
-  before any backend, so every port inherits full security.
-- **Add DSL statements:** grow the language with one AST node, one parser
-  handler, optional firewall rule, and codegen — exact recipe in
-  [docs/PORTING-AND-EXTENDING.md](docs/PORTING-AND-EXTENDING.md).
-- **Integrate frameworks** (MQTT, Home Assistant, Node-RED): every generated
-  driver exposes one stable ABI — `set_pin_mode`, `read_pin`, `write_pin`.
-- **Smart Home full-power kit:** `examples/smart_home.pi` is a complete
-  multi-output, atomic, sensor-driven build you can compile today.
-- **On-device AI:** feed `read_pin()` telemetry into a TensorFlow Lite model
-  and actuate through `write_pin()` — see the AI guide for the SDK.
-
-Full-power unlock tiers (Community / Enterprise SDK / Custom Integration) and
-the AI/DSL roadmap are documented in
-[docs/PORTING-AND-EXTENDING.md](docs/PORTING-AND-EXTENDING.md).
-
----
-
-## 🔐 Enterprise Confidentiality & Ownership
-
-SentryPi follows a strict **open-core model**. The MIT repo is complete and
-cloneable *by design*; the enterprise value lives in the licensed layer —
-see [docs/ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md) for the full
-confidentiality and ownership strategy:
-
-- **No hidden code in the public repo** — a clone gets a fully working
-  open-core compiler and nothing more.
-- **Proprietary surface is licensed**: ESP32/STM32/Arduino backends, native ARM
-  codegen, asymmetric (Ed25519) signing, compliance packs, AI engines, per-
-  device key binding / secure boot integration.
-- **Everything compiled is signed**: `sentryc sign` → HMAC gate at stage 0,
-  signed artifact chain from CI to device, key material never committed.
-- **Trademarks + CLA**: "SentryPi"/"ZeroHack" marks and contributor license
-  agreements keep the commercial boundary clear.
-- **License enforcement**: signed license files bound to customer machines,
-  offline-capable, no phone-home.
-
-> ⚠️ Honest engineering note: security-by-hiding is rejected. We protect
-> *licensed value* and *signed artifacts*, not Python obfuscation.
-
----
-
-## 🗺️ The Landscape: Who Else Is Doing This?
-
-You are tapping into an elite and rapidly growing paradigm called **Secure
-Compilation and Language-Based Security**. Globally, researchers and corporate
-labs are shifting security away from reactive firewalls and moving it directly
-into the development cycle. [1, 2, 3]
-
-A comprehensive look at the ecosystem shows who you are competing with or
-building upon:
-
-1. **Academic Researchers**: Over 90+ peer-reviewed papers published recently
-   focus entirely on using static analysis to find IoT vulnerabilities (like
-   unsafe `strcpy` or buffer limits). Research teams at institutions like
-   [SIGPLAN](https://blog.sigplan.org/2019/07/01/secure-compilation/) track
-   "Secure Compilation Chains" to enforce type safety and memory boundaries for
-   low-level execution. [1, 2]
-
-2. **Enterprise Systems Vendors**: Tech giants and semiconductor firms (like
-   Silicon Labs' CPMS platform) are forcing security features like secure boot
-   and flash protection right into the chip-level provisioning phase. [4]
-
-3. **The Industry Gap**: Most existing enterprise tools target advanced
-   firmware emulation or binary extraction (like PANDA, FirmWire, or FACT).
-   They analyze code *after* it is already written. [5, 6]
-
-## 🛡️ What SentryPi Brings to Bridge the Gap
-
-This is our core product differentiator. Most IoT devices fail because of
-complex frameworks and poor input validation. [1, 7]
-
-| | The Status Quo | The SentryPi Framework |
-|---|---|---|
-| Workflow | Write complex Python, Flask, or C, then buy a secondary tool (like a SAST scanner) to find bugs | Development and security are unified in one tool |
-| Supply chain | No source of truth for "who wrote this" | Mandatory HMAC-SHA256 developer signatures |
-| Input handling | Manual sanitization, easy to get wrong | Native input sanitization, register locks, and pointer analysis |
-| Failure mode | Insecure script ships, bugs found later | The compiler structurally rejects or refuses to emit the executable |
-
-A developer **cannot** accidentally write an insecure script because the
-compiler structurally changes forms or refuses to emit the executable. [1, 5, 8]
-
----
-
-## 📂 Repository Architecture
+## Repository Layout
 
 ```
 sentrypi/
-├── .github/workflows/ci.yml # CI: tests + compiles + signing gate + hard mode
-├── docs/
-│   ├── QUICKSTART.md         # Software bring-up (zero-hardware → Pi)
-│   ├── HACKATHON-DEMO.md     # 3-min oral pitch, LED rig, demo traces, pitch matrix
-│   ├── HARDWARE-GUIDE.md     # Parts lists, wiring, deployment
-│   ├── ARCHITECTURE.md       # Full engine spec: pipeline, crypto, IR, drivers
-│   ├── SPEC.md               # Grammar, security policy & binary format spec
-│   ├── FAQ.md                # Technical FAQ + industry comparison matrix
-│   ├── PORTING-AND-EXTENDING.md  # ESP32/STM32/Arduino ports + AI integration
-│   └── ENTERPRISE-DELIVERY.md    # Confidentiality, ownership, licensing
+├── .github/workflows/ci.yml      # CI: tests, example compiles, signing gates
+├── docs/                         # specifications and guides (see Documentation)
 ├── examples/
-│   ├── blink.pi             # Safe hardware init + DELAY barrier
-│   ├── sensor.pi            # ATOMIC polling hardware inputs
-│   ├── alarm.pi             # Event-driven motion alarm (atomic)
-│   ├── deploy.pi            # Alias syntax + atomic conditional deployment
-│   ├── smart_home.pi        # Full Smart Home kit (multi-output, atomic, AI-ready)
-│   ├── living_room.pi       # Healthy smart-home trace (clean compile, demo)
-│   ├── device_fault.pi      # Corrupted-stream trace (Safe-Fail: blocked, exit 2)
-│   ├── hackathon_demo.py    # Two-trace table driver (real pipeline + LED rig)
-│   ├── race.pi              # TOCTOU hazard demo (warns; --hard rejects)
-│   ├── strobe.pi            # Overload hazard demo (warns; --hard rejects)
-│   └── security_test.pi     # Simulated security failure vector
+│   ├── blink.pi                  # safe hardware init + DELAY barrier
+│   ├── sensor.pi                 # ATOMIC polling of hardware inputs
+│   ├── alarm.pi                  # event-driven motion alarm (atomic)
+│   ├── deploy.pi                 # alias syntax + atomic conditional deployment
+│   ├── smart_home.pi             # full multi-output smart-home kit
+│   ├── living_room.pi            # healthy smart-home trace (compiles clean)
+│   ├── device_fault.pi           # corrupted-stream trace (blocked, exit 2)
+│   ├── hackathon_demo.py         # two-trace table driver (real pipeline)
+│   ├── race.pi                   # TOCTOU hazard demo (warns; --hard rejects)
+│   ├── strobe.pi                 # overload hazard demo (warns; --hard rejects)
+│   └── security_test.pi          # simulated security failure vector
 ├── src/sentrypi/
-│   ├── ast_nodes.py         # AST node definitions
-│   ├── lexer.py             # Lexical analyzer + input buffer boundary rules
-│   ├── parser.py            # LL(1) parser w/ panic-mode recovery
-│   ├── semantic_analyzer.py # Symbol table, IO-mode & type enforcement
-│   ├── static_analyzer.py   # 🔒 The Security Firewall (TOCTOU, overload)
-│   ├── crypto.py            # HMAC-SHA256 signature verifier + signer
-│   ├── ir.py                # Three-Address Code (TAC) generator
-│   ├── optimizer.py         # Redundant-write folding + barrier reset
-│   ├── target_arm.py        # Code Gen: .bin/.map/.sh + /dev/gpiomem driver
-│   ├── targets.py           # Backend registry (plug in ESP32/STM32/AI)
-│   ├── compiler.py          # Pipeline orchestration
-│   ├── cli.py               # sentryc binary entry point
-│   └── playground.py        # Localhost web editor (sentryc serve)
-├── SECURITY.md              # Vulnerability disclosure & threat model
-├── CONTRIBUTING.md          # Contributor guide
-├── CHANGELOG.md             # 0.1.0 → 0.2.0 release history
-├── LICENSE                  # MIT (© ZeroHack.org)
-└── tests/                   # 92 test cases covering the full pipeline
+│   ├── ast_nodes.py              # AST node definitions
+│   ├── lexer.py                  # lexical analyzer + input buffer rules
+│   ├── parser.py                 # LL(1) parser with panic-mode recovery
+│   ├── semantic_analyzer.py      # symbol table, IO-mode checks
+│   ├── static_analyzer.py        # the Security Firewall
+│   ├── crypto.py                 # HMAC-SHA256 verifier + signer
+│   ├── ir.py                     # three-address code generator
+│   ├── optimizer.py              # redundant-write folding
+│   ├── target_arm.py             # .bin / .map / .sh / _driver.py codegen
+│   ├── targets.py                # backend registry
+│   ├── compiler.py               # pipeline orchestration
+│   ├── cli.py                    # sentryc entry point
+│   └── playground.py             # localhost web editor
+├── tests/                        # 92 unit tests
+├── SECURITY.md                   # disclosure policy and threat model
+├── CONTRIBUTING.md               # contributor guide
+├── CHANGELOG.md                  # release history
+└── LICENSE                       # MIT (ZeroHack.org)
 ```
 
 ---
 
-## 💼 Positioning as a Product
+## Getting Started
 
-A strategy to transition SentryPi from a student project into a commercial
-vehicle that wins enterprise clients or builds prestige for your cybersecurity
-company, **ZeroHack.org**:
+Requires Python 3.9+.
 
+```bash
+git clone https://github.com/ZeroHackOrg/SentryPi.git
+cd sentrypi
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .            # installs the sentryc binary
+
+sentryc --version           # verify install
+sentryc examples/blink.pi   # compile the first program (zero hardware required)
+python -m unittest discover -s tests -v   # run the 92-test suite
 ```
-[ Free Open-Source Core ] ──> [ Enterprise Security Audits ] ──> [ B2B Enterprise Licensing ]
-  (Builds Massive Trust)         (Powered by ZeroHack.org)         (Hardened Commercial SDKs)
+
+The zero-hardware sandbox workflow, first-run wiring, and a signed-CI gate are
+covered in `docs/QUICKSTART.md`. Parts lists and wiring for both starter and
+smart-home kits are in `docs/HARDWARE-GUIDE.md`. Every example also runs through
+the Web Playground (`sentryc serve`).
+
+---
+
+## Documentation
+
+| Document | Contents |
+| :--- | :--- |
+| `docs/QUICKSTART.md` | zero-hardware sandbox, first compile, signed CI gate |
+| `docs/HACKATHON-DEMO.md` | 3-minute pitch script, LED rig, demo traces, pitch matrix |
+| `docs/HARDWARE-GUIDE.md` | parts lists, wiring, deployment |
+| `docs/SPEC.md` | grammar, security policy, binary-format specification |
+| `docs/ARCHITECTURE.md` | full engine spec: pipeline, crypto, IR, drivers |
+| `docs/FAQ.md` | technical FAQ and industry comparison |
+| `docs/PORTING-AND-EXTENDING.md` | ESP32 / STM32 / Arduino ports, AI integration |
+| `docs/ENTERPRISE-DELIVERY.md` | confidentiality, ownership, licensing |
+
+---
+
+## Extending and Porting
+
+- **New backends:** implement the four `Target` hooks, call `targets.register(...)`,
+  then `SENTRYPI_TARGET=<id> sentryc app.pi`. Every port inherits the firewall,
+  crypto, and optimizer because those run before codegen.
+- **New DSL statements:** one AST node, one parser handler, an optional firewall
+  rule, and codegen — the exact recipe is in `docs/PORTING-AND-EXTENDING.md`.
+- **Framework integration** (MQTT, Home Assistant, Node-RED): every generated
+  driver exposes one stable ABI — `set_pin_mode`, `read_pin`, `write_pin`.
+- **On-device AI:** feed `read_pin()` telemetry into a TensorFlow Lite model and
+  actuate through `write_pin()`.
+
+---
+
+## Enterprise Model
+
+SentryPi follows a strict **open-core model**: the MIT repository is complete
+and cloneable by design; the licensed layer carries the commercial value.
+
+- No hidden code in the public repository — a clone yields a fully working
+  open-core compiler.
+- Licensed surface: ESP32 / STM32 / Arduino backends, native ARM codegen,
+  asymmetric (Ed25519) signing, compliance packs, AI engines, per-device key
+  binding, and secure-boot integration.
+- Every compiled program can be signed: `sentryc sign` -> HMAC gate at stage 0,
+  a signed artifact chain from CI to the device, and key material that is never
+  committed.
+- Signed license files bind to customer machines, are offline-capable, and do
+  not phone home.
+
+Honest engineering note: security-by-hiding is rejected. Protection applies to
+licensed value and signed artifacts — never to Python obfuscation.
+
+---
+
+## Contribute
+
+SentryPi is an open-source, community-driven project. Contributors of all
+levels are welcome — systems engineers, security researchers, web developers,
+and first-time open-source contributors.
+
+- **Good first tasks:** extend the grammar (`ANALOG_READ`, timed loops) in
+  `lexer.py` / `parser.py`; add behavioral attack signatures to the firewall
+  in `static_analyzer.py`; port `target_arm.py` to ESP32 / Arduino.
+- **Bugs and feature requests:** open an issue with a minimal reproduction —
+  ideally a `.pi` file that compiles or fails unexpectedly.
+- **Design review:** the pipeline, IR, and binary format are documented in
+  `docs/ARCHITECTURE.md` and `docs/SPEC.md`; comments and RFCs on the
+  `ATOMIC` / firewall semantics are especially welcome.
+
+Setup:
+
+```bash
+git clone https://github.com/ZeroHackOrg/SentryPi.git
+cd sentrypi
+python3 -m venv venv && source venv/bin/activate && pip install -e .
+python -m unittest discover -s tests -v
 ```
 
-1. **The Open-Source "Hook" (Freemium Model)** — Keep the Raspberry Pi compiler
-   core 100% open-source on GitHub at
-   [ZeroHackOrg/SentryPi](https://github.com/ZeroHackOrg/SentryPi). This acts
-   as a massive marketing funnel. When engineers, hardware makers, and tech
-   students use it, it immediately highlights ZeroHack.org as an authority in
-   low-level systems defense.
-
-2. **The Enterprise Product Shift: "Sentry-SDK for Microcontrollers"** —
-   Consider this project the MVP (Minimum Viable Product). For potential
-   enterprise buyers, pitch a commercial closed-source layer:
-   **Sentry-Enterprise**. Instead of targeting just a Raspberry Pi, market it
-   as an automated pipeline plugin that allows manufacturers to compile secure,
-   exploit-proof code directly onto medical devices, smart vehicles, and
-   industrial sensors. [9]
-
-3. **The B2B Pitch to Attract Corporate Buyers**
-
-   > "The global IoT security market is surging toward $53.3 Billion in 2026,
-   > driven heavily by new legislation like the EU Cyber Resilience Act, which
-   > mandates documented security-by-design. Most companies fail compliance
-   > because their engineers lack specialized cyber-talent. At ZeroHack.org, we
-   > developed SentryPi to eliminate human error. By shifting security directly
-   > into the compiler AST phase, we block memory injection, unauthorized
-   > register access, and unverified supply-chain code at the source. We
-   > license our compiler frameworks to hardware teams to guarantee hardware
-   > protection and automated regulatory compliance before manufacturing."
-   > [8, 10, 11, 12]
-
-4. **Turn GitHub Stars into Consulting Revenue**
-
-   > "Need to secure your legacy embedded systems? SentryPi is maintained by
-   > ZeroHack.org. We provide full-scope firmware reverse-engineering, hardware
-   > penetration testing, and secure-compiler integration for modern
-   > enterprises." [6, 8]
-
-### B2B Commercial Inquiries & Consulting
-
-`SentryPi` is engineered by **[ZeroHack.org](https://zerohack.org)** to
-demonstrate secure product design at the compilation level.
-
-- **Looking for security solutions?** We license custom, enterprise-grade
-  compilation layers to hardware manufacturers, medical device developers, and
-  automotive firmware vendors.
-- **Need an audit?** Your team can commission advanced firmware penetration
-  testing, architectural vulnerability reviews, or secure development
-  pipelines.
-
-**Contact Core Systems Architect:** [solutions@zerohack.org](mailto:solutions@zerohack.org) ·
-**Digital Defense Lab:** [ZeroHack.org](https://zerohack.org)
+See `CONTRIBUTING.md` for the code-of-conduct, commit workflow, and CI gates.
 
 ---
 
-## 🤝 For Contributors
+## Sponsor SentryPi
 
-We welcome contributions from systems engineers, cybersecurity researchers, and
-compiler enthusiasts!
+SentryPi keeps an MIT open core, but a project like this needs real backing to
+grow: hardware for test rigs, CI runners, documentation time, and engineers to
+port backends. Sponsorship directly funds the roadmap below.
 
-### Development Environment Setup
+### What sponsors enable
 
-1. **Clone the infrastructure repo:**
+| Tier | Contribution | What you get |
+| :--- | :--- | :--- |
+| Community | any amount, one-off or recurring | recognition in the project README and release notes |
+| Hardware | Raspberry Pi boards, sensors, ESP32/STM32 kits, oscilloscopes | your logo on the docs site, priority access to hardware-testing streams |
+| Engineering | funded maintainer time, CI infrastructure, cloud credits | named roadmap items, advisory role, early preview of enterprise backends |
 
-   ```bash
-   git clone https://github.com/ZeroHackOrg/SentryPi.git
-   cd sentrypi
-   ```
+### Where we are headed
 
-2. **Initialize the local validation suite:**
+- Network-layer threat signatures, loop / timer constructs, analog input.
+- ESP32, STM32, Arduino, and LLVM backends.
+- Signed, hardware-bound enterprise builds and compliance packs.
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -e .
-   ```
+Every tier is managed transparently: funds and hardware go to maintainers,
+docs, and CI. Corporate sponsorship, educational pilots, and venture backing
+for deployments across schools and industries in East Africa are welcome.
 
-3. **Execute compiler diagnostics:**
-
-   ```bash
-   python -m unittest discover -s tests -v
-   # or equivalently
-   pytest tests/
-   ```
-
-### How to Help
-
-- **Frontend Expansion:** Extend `lexer.py` / `parser.py` for analog sensors
-  (`ANALOG_READ`) and timed loops.
-- **Firewall Expansion:** Add behavioral attack signatures to detect
-  denial-of-service (DoS) logic loops and network-layer threats in
-  `static_analyzer.py`.
-- **Backend Migration:** Port `target_arm.py` from the Raspberry Pi native
-  mapping layer to a cross-compilation pipeline targeting ESP32 / Arduino via
-  LLVM IR or native assembly.
+**To sponsor or inquire:** email [solutions@zerohack.org](mailto:solutions@zerohack.org)
+or reach the maintainer directly at [geek@zerohack.org](mailto:geek@zerohack.org).
 
 ---
 
-## 🚀 Corporate Sponsors & Job Opportunities
+## Security
 
-### To Industry Partners & Talent Acquisition
-
-I am a Final-Year Computer Science Student specializing in the intersection of
-Compiler Construction, Cybersecurity, and Edge AI. This project is a working
-proof of my capabilities in low-level systems engineering, secure software
-development lifecycles, and hardware architecture abstraction.
-
-- **Looking for an elite engineer?** I am actively seeking Graduate Technical
-  Roles, DevOps/DevSecOps Positions, and Systems Engineering Opportunities.
-- **Hardware Testbed:** This project is actively developed and tested on an
-  8GB Raspberry Pi 4B, utilizing high-quality physical instrumentation and
-  prototyping modules sourced locally from Mamuza Engineering (Nairobi, Kenya).
-- **Sponsorship:** If your organization wants to fund further development,
-  expand this ecosystem into smart-grid security testing, or deploy it into
-  educational institutions across Kenya, let's connect!
+See `SECURITY.md` for the vulnerability-disclosure policy and full threat model.
+In short: this project treats the compiler as a firewall. If you can make a
+malicious `.pi` file reach the hardware, that is a security bug — please report
+it privately per the disclosure procedure in `SECURITY.md`.
 
 ---
 
-## 📚 References
+## Roadmap
 
-1. [https://dl.acm.org/doi/full/10.1145/3745019](https://dl.acm.org/doi/full/10.1145/3745019)
-2. [https://blog.sigplan.org/2019/07/01/secure-compilation/](https://blog.sigplan.org/2019/07/01/secure-compilation/)
-3. [https://www.researchgate.net/publication/392837638_Static_Code_Analysis_for_IoT_Security_A_Systematic_Literature_Review](https://www.researchgate.net/publication/392837638_Static_Code_Analysis_for_IoT_Security_A_Systematic_Literature_Review)
-4. [https://www.youtube.com/watch?v=UbHl2GVIk5w](https://www.youtube.com/watch?v=UbHl2GVIk5w)
-5. [https://www.oligo.security/academy/static-code-analysis](https://www.oligo.security/academy/static-code-analysis)
-6. [https://github.com/kayranfatih/awesome-iot-and-hardware-security](https://github.com/kayranfatih/awesome-iot-and-hardware-security)
-7. [https://davidbombal.com/you-need-to-secure-your-iot-devices-in-2026/](https://davidbombal.com/you-need-to-secure-your-iot-devices-in-2026/)
-8. [https://www.scribd.com/document/951276142/Design-and-Implementation-of-the-Secure-Compiler-and-Virtual-Machine-for-Developing-Secure-IoT-Services](https://www.scribd.com/document/951276142/Design-and-Implementation-of-the-Secure-Compiler-and-Virtual-Machine-for-Developing-Secure-IoT-Services)
-9. [https://www.researchgate.net/publication/339403656_A_Secure_Platform_for_IoT_Devices_based_on_ARM_Platform_Security_Architecture](https://www.researchgate.net/publication/339403656_A_Secure_Platform_for_IoT_Devices_based_on_ARM_Platform_Security_Architecture)
-10. [https://www.mordorintelligence.com/industry-reports/iot-security-market](https://www.mordorintelligence.com/industry-reports/iot-security-market)
-11. [https://www.grandviewresearch.com/industry-analysis/internet-of-things-iot-security-market](https://www.grandviewresearch.com/industry-analysis/internet-of-things-iot-security-market)
-12. [https://www.rootsanalysis.com/internet-of-things-iot-security-market](https://www.rootsanalysis.com/internet-of-things-iot-security-market)
+- Network-layer threat signatures (port binding, raw sockets).
+- Loop / timer constructs and a multi-tasking scheduler.
+- Analog input (`ANALOG_READ`) and timing primitives.
+- ESP32 and Arduino / LLVM IR backends.
+- A registry of known CVE patterns for common IoT stacks.
 
 ---
 
-## 📬 Let's Connect & Innovate Together
+## References
 
-- **Developer:** Geoffrey Geek
-- **GitHub:** [ZeroHackOrg](https://github.com/ZeroHackOrg)
-- **LinkedIn:** [Geoffrey Geek](https://www.linkedin.com/in/geoffrey-geek-50b846356/)
-- **Email:** [geek@zerohack.org](mailto:geek@zerohack.org)
+**Research and standards**
+
+1. [Design and Implementation of a Secure Compiler and Virtual Machine for Developing Secure IoT Services](https://www.scribd.com/document/951276142/Design-and-Implementation-of-the-Secure-Compiler-and-Virtual-Machine-for-Developing-Secure-IoT-Services)
+2. [Secure Compilation Chains (SIGPLAN blog)](https://blog.sigplan.org/2019/07/01/secure-compilation/)
+3. [Static Code Analysis for IoT Security: A Systematic Literature Review](https://www.researchgate.net/publication/392837638_Static_Code_Analysis_for_IoT_Security_A_Systematic_Literature_Review)
+4. [A Secure Platform for IoT Devices Based on the ARM Platform Security Architecture](https://www.researchgate.net/publication/339403656_A_Secure_Platform_for_IoT_Devices_based_on_ARM_Platform_Security_Architecture)
+5. [A Secure Compiler: Implementation and Verification of Language-Based Security](https://dl.acm.org/doi/full/10.1145/3745019)
+
+**Industry and market**
+
+6. [IoT Security Market Report (Mordor Intelligence)](https://www.mordorintelligence.com/industry-reports/iot-security-market)
+7. [IoT Security Market Size (Grand View Research)](https://www.grandviewresearch.com/industry-analysis/internet-of-things-iot-security-market)
+8. [IoT Security Market (Roots Analysis)](https://www.rootsanalysis.com/internet-of-things-iot-security-market)
+9. [You Need to Secure Your IoT Devices (David Bombal)](https://davidbombal.com/you-need-to-secure-your-iot-devices-in-2026/)
+
+**Tools, resources, and talks**
+
+10. [Static Code Analysis (Oligo Security)](https://www.oligo.security/academy/static-code-analysis)
+11. [awesome-iot-and-hardware-security](https://github.com/kayranfatih/awesome-iot-and-hardware-security)
+12. [Platform Security Architecture on ARM (talk)](https://www.youtube.com/watch?v=UbHl2GVIk5w)
+
+Cited references appear inline as [1-12]; they are provided for background and
+further reading. The claims in this README are backed by this project's own
+test suite and documented pipeline (`docs/SPEC.md`, `docs/ARCHITECTURE.md`).
 
 ---
 
-## 📄 License
+## Contact
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file
-for details.
+- Developer: Geoffrey Geek
+- GitHub: [ZeroHackOrg](https://github.com/ZeroHackOrg)
+- Email: [geek@zerohack.org](mailto:geek@zerohack.org)
+- Enterprise inquiries: [solutions@zerohack.org](mailto:solutions@zerohack.org)
+- Organization: [ZeroHack.org](https://zerohack.org)
+
+---
+
+## License
+
+MIT. Copyright (c) ZeroHack.org. See [LICENSE](LICENSE).

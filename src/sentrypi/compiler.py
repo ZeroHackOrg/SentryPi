@@ -59,7 +59,7 @@ def compile_text(
             say("Cryptographic Signature Verification... Verified.")
         except SecurityException as error:
             say("Cryptographic Signature Verification... FAIL.")
-            report(f"🚨 {error}")
+            report(f"{error}")
             result.crypto_error = str(error)
             return result
     else:
@@ -93,13 +93,13 @@ def compile_text(
 
     say("Running Semantic Analysis... Success.")
     for warning in warnings:
-        report(f"⚠️  [Line {warning.line}]: {warning.message}")
+        report(f"WARNING [Line {warning.line}]: {warning.message}")
 
     if errors:
         say("Running Static Security Firewall...")
         for error in errors:
-            report(f"❌ COMPILE ERROR [Line {error.line}]: {error.message}")
-        report("⚠️  Compilation aborted. Physical hardware protected.")
+            report(f"COMPILE ERROR [Line {error.line}]: {error.message}")
+        report("Compilation aborted. Physical hardware protected.")
         result.errors = errors
         result.warnings = warnings
         return result

@@ -33,7 +33,7 @@ _PAGE = """<!doctype html>
 </style>
 </head>
 <body>
-<h1>🛡️ SentryPi <span>Playground</span></h1>
+<h1>SentryPi <span>Playground</span></h1>
 <p>Write <b>.pi</b> code and compile it through the Security Firewall — the backend
 (secure container in production) returns the same stage output as <b>sentryc</b>.</p>
 <div class="bar">

@@ -1,4 +1,4 @@
-# 🧩 SentryPi Porting & Extending — Other IoT Frameworks + AI
+# SentryPi Porting & Extending — Other IoT Frameworks + AI
 
 How to grow SentryPi beyond the Raspberry Pi core: new DSL statements, new
 hardware backends (ESP32, STM32, Arduino), framework integrations (MQTT,
@@ -9,7 +9,7 @@ when you add a backend or a statement:
 
 ```
 lexer → parser → semantic → firewall → IR (TAC) → optimize → Target(registry)
-                                                        └─ arm (default) ✓
+                                                        └─ arm (default) 
                                                         └─ your target (plugin)
 ```
 

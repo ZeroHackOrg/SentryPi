@@ -1,4 +1,4 @@
-# 🏆 SentryPi at the Hackathon — "The Human-Centric Smart Home"
+# SentryPi at the Hackathon — "The Human-Centric Smart Home"
 
 **The one-line story judges remember:** *"A lightweight, plain-English
 language that compiles smart-home automation straight onto a Raspberry Pi —
@@ -12,7 +12,7 @@ programming frameworks.
 
 ---
 
-## 🎙️ The 3-Minute Oral Pitch Script
+## The 3-Minute Oral Pitch Script
 
 > "Judges, smart home automation is fragmented and overly complex. If an
 > everyday maker wants to hook a motion sensor to an air conditioner or a
@@ -33,7 +33,7 @@ programming frameworks.
 
 ---
 
-## 📝 The Two Demo Scripts (side-by-side on the table)
+## The Two Demo Scripts (side-by-side on the table)
 
 ### Script 1: `examples/living_room.pi` — the normal automation state
 
@@ -69,9 +69,9 @@ The compile-time **Security Firewall** detects the oversized (1 MB) payload as
 a buffer-overflow threat and **refuses to emit any binary**:
 
 ```
-❌ COMPILE ERROR [Line 2]: Buffer overflow vulnerability detected! String size
+ COMPILE ERROR [Line 2]: Buffer overflow vulnerability detected! String size
    (1000000 bytes) exceeds safe buffer allotment of 256 bytes.
-⚠️  Compilation aborted. Physical hardware protected.
+  Compilation aborted. Physical hardware protected.
 ```
 
 Exit code is **2** — nothing executes, the appliance stays disengaged. That is
@@ -84,7 +84,7 @@ the Safe-Fail promise: broken data streams are intercepted at compile time.
 
 ---
 
-## 💻 The Live Smart Home Edge Engine
+## The Live Smart Home Edge Engine
 
 Run the real pipeline end-to-end, exactly as a judge would on your table:
 
@@ -114,14 +114,14 @@ present — drives the green/red LEDs described below.
 
 ---
 
-## 🎨 The Winning Execution Layout (On the Hackathon Table)
+## The Winning Execution Layout (On the Hackathon Table)
 
 1. **The Visual Rig** — Raspberry Pi 4B on the desk, open, with two LEDs:
 
    | Indicator | Raspberry Pi wiring | Meaning |
    | :--- | :--- | :--- |
-   | 🟢 Green LED | BCM GPIO **18** (physical header pin 12) · 220 Ω | working smart-home appliance (AC / lock / valve) |
-   | 🔴 Red LED | BCM GPIO **23** (physical header pin 16) · 220 Ω | system **Safe-Fail lockdown** state |
+   |  Green LED | BCM GPIO **18** (physical header pin 12) · 220 Ω | working smart-home appliance (AC / lock / valve) |
+   |  Red LED | BCM GPIO **23** (physical header pin 16) · 220 Ω | system **Safe-Fail lockdown** state |
 
    > **Pin-numbering note:** the `.pi` language uses **physical 40-pin header
    > positions** (the numbers printed on the header). The compiler translates
@@ -145,20 +145,20 @@ present — drives the green/red LEDs described below.
 
 ---
 
-## 📊 The Universal Domain Pitch Matrix
+## The Universal Domain Pitch Matrix
 
 Pitch the same technology through multiple industry lenses:
 
-| Presentation Angle | Everyday Reality / Pain Point | 🚀 How SentryPi Solves It Natively | 💰 Commercial Value |
+| Presentation Angle | Everyday Reality / Pain Point |  How SentryPi Solves It Natively |  Commercial Value |
 | :--- | :--- | :--- | :--- |
-| 🚜 Agri-Tech & Drones | Farmers and drone operators don't know C++ — automation stays out of reach. | Plain-English control mapping (`LINK PIN 18 TO WATER_VALVE`). | Cuts training costs; accelerates regional farm automation. |
-| 🏠 Next-Gen Smart Homes | Connecting smart components means messy setups that lock or crash when a sensor breaks. | Safe-Fail compilation isolates failing devices without freezing the whole home. | Unmatched uptime guarantees for consumer appliance platforms. |
-| 🛡️ Cybersecurity | AI assistants code quickly but skip memory checks, creating buffer vulnerabilities. | Threat analysis is structural and automatic — no human error window. | Security shifted fully into compile-time pipelines. |
-| 🤖 AI / ML Integration | Autonomous agents running system commands can be manipulated by injected data. | The compiler verifies data structures pre-deployment as an injection gateway. | A secure execution sandbox for enterprise cloud workloads. |
+|  Agri-Tech & Drones | Farmers and drone operators don't know C++ — automation stays out of reach. | Plain-English control mapping (`LINK PIN 18 TO WATER_VALVE`). | Cuts training costs; accelerates regional farm automation. |
+|  Next-Gen Smart Homes | Connecting smart components means messy setups that lock or crash when a sensor breaks. | Safe-Fail compilation isolates failing devices without freezing the whole home. | Unmatched uptime guarantees for consumer appliance platforms. |
+|  Cybersecurity | AI assistants code quickly but skip memory checks, creating buffer vulnerabilities. | Threat analysis is structural and automatic — no human error window. | Security shifted fully into compile-time pipelines. |
+|  AI / ML Integration | Autonomous agents running system commands can be manipulated by injected data. | The compiler verifies data structures pre-deployment as an injection gateway. | A secure execution sandbox for enterprise cloud workloads. |
 
 ---
 
-## 🤝 The Open-Source Global Community Call to Action
+## The Open-Source Global Community Call to Action
 
 SentryPi scales beyond an academic exercise into a globally recognized
 open-source infrastructure node managed by **ZeroHack.org**.
@@ -173,19 +173,19 @@ venture backing to bring secure, low-overhead programming to schools and
 industries across East Africa. ZeroHack licenses enterprise-tier compiler
 backends for sensitive environments.
 
-📥 solutions@zerohack.org · 🌐 ZeroHack.org · 📍 Nairobi, Kenya
+ solutions@zerohack.org ·  ZeroHack.org ·  Nairobi, Kenya
 
 ---
 
-## 📣 Social / Launch Copy (LinkedIn & X)
+## Social / Launch Copy (LinkedIn & X)
 
 > Introducing **SentryPi (.pi)** — a human-centric compiler that turns plain
 > English into safe edge automation on a Raspberry Pi.
 >
-> 🏠 Write "IF MOTION_SENSOR IS HIGH THEN TRIGGER AC_COOLING_SYSTEM HIGH" —
+>  Write "IF MOTION_SENSOR IS HIGH THEN TRIGGER AC_COOLING_SYSTEM HIGH" —
 > and we compile it straight to memory-mapped GPIO instructions.
 >
-> 🔒 And when a sensor breaks or a data stream floods in, the built-in
+>  And when a sensor breaks or a data stream floods in, the built-in
 > **Safe-Fail firewall** stops the build *before* it touches your hardware —
 > no freezes, no crashes, no fried boards.
 >

@@ -1,4 +1,4 @@
-# 🤝 Contributing to SentryPi
+# Contributing to SentryPi
 
 Thanks for helping harden the SentryPi compiler. Whether you are fixing a
 firewall gap, porting a backend, or improving the docs, this guide keeps the

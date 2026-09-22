@@ -1,4 +1,4 @@
-# ❓ SentryPi: Technical FAQ & Comparison Matrix
+# SentryPi: Technical FAQ & Comparison Matrix
 
 Answers to the questions developers, investors, and B2B clients ask when
 evaluating SentryPi against standard IoT ecosystems. Every statement here is
@@ -6,9 +6,9 @@ verifiable against this repository.
 
 ---
 
-## 🏅 The Final Frontier: SentryPi vs. The Industry Status Quo
+## The Final Frontier: SentryPi vs. The Industry Status Quo
 
-| Question / Feature | Standard Python Scripting (GPIO Zero, RPi.GPIO) | Traditional SAST Scanners (SonarQube, Snyk) | 🛡️ SentryPi Enterprise |
+| Question / Feature | Standard Python Scripting (GPIO Zero, RPi.GPIO) | Traditional SAST Scanners (SonarQube, Snyk) |  SentryPi Enterprise |
 |---|---|---|---|
 | What exactly IS it? | A high-level runtime code library used to toggle pins. | An external scanning software that reads text to find bugs. | A standalone compiler engine and custom programming language. |
 | When does security happen? | Never. Security depends entirely on the developer writing good logic. | Post-Development. Scans code after it is written, but before it runs. | At Compile-Time. Security is structurally embedded into the build phase. |
@@ -19,7 +19,7 @@ verifiable against this repository.
 
 ---
 
-## 💡 The 3 Biggest Myths, Busted
+## The 3 Biggest Myths, Busted
 
 ### 1. "Is SentryPi just another Python library?"
 
@@ -45,7 +45,7 @@ converts simple code into low-level hardware optimizations.
 
 ---
 
-## 🔒 The Compile-Time Firewall
+## The Compile-Time Firewall
 
 ### What does the firewall actually block?
 
@@ -85,7 +85,7 @@ pin), blocks the optimizer from folding writes across it, and lowers to
 
 ---
 
-## 🔐 Cryptographic Integrity
+## Cryptographic Integrity
 
 ### Is the signature "asymmetric"?
 
@@ -99,7 +99,7 @@ X.509), that is offered under **ZeroHack Custom Integration**.
 
 - `sentryc sign file.pi` prepends `AUTHENTICATE WITH "0x<hmac-sha256>"`.
 - Compiling signed code with the same key → `Verified`.
-- Compiling unsigned or modified code → `🚨 Signature Mismatch` → `exit 2`.
+- Compiling unsigned or modified code → ` Signature Mismatch` → `exit 2`.
 - With **no** key in the environment, signing is skipped (developer mode) so
   examples remain portable.
 
@@ -111,7 +111,7 @@ never becomes a binary.
 
 ---
 
-## ⚡ The High-Speed Backend (`/dev/gpiomem`)
+## The High-Speed Backend (`/dev/gpiomem`)
 
 ### How does the driver avoid slow sysfs file I/O?
 
@@ -147,7 +147,7 @@ firewall**; no backend (`bin`, `map`, `sh`, `driver`) ever synthesizes it.
 
 ---
 
-## 🛠️ Verified CLI Transcript
+## Verified CLI Transcript
 
 Reproduced from a real terminal against this repository:
 
@@ -158,7 +158,7 @@ $ export SENTRYPI_MASTER_KEY="0xcafebabe42424242"
 $ sentryc sign alarm.pi -o signed_alarm.pi
 [SentryPi] Signed with HMAC-SHA256: 0xfba4f2c224ed929dfab5ed45f481c04fe21d34cf8e820302c5f6b7a4876552ff
 [SentryPi] AUTHENTICATE header written to 'signed_alarm.pi'.
-🔒 Compile with the same key to verify source integrity.
+ Compile with the same key to verify source integrity.
 
 # 2. Verified sources compile (exit 0)
 $ sentryc signed_alarm.pi
@@ -169,13 +169,13 @@ $ sentryc signed_alarm.pi
 $ sed -i 's/HIGH/LOW/' signed_alarm.pi
 $ sentryc signed_alarm.pi
 [SentryPi] Cryptographic Signature Verification... FAIL.
-🚨 🚨 CRITICAL WARNING: Signature Mismatch! Firmware modification or script
+  CRITICAL WARNING: Signature Mismatch! Firmware modification or script
    injection attempt intercepted by ZeroHack Firewall.        (exit 2)
 
 # 4. Unsigned source under a configured key is stopped (exit 2)
 $ sentryc unsigned_alarm.pi
 [SentryPi] Cryptographic Signature Verification... FAIL.
-🚨 🚨 COMPILE CRASH: Unsigned Source Code. SentryPi compiler requires verified
+  COMPILE CRASH: Unsigned Source Code. SentryPi compiler requires verified
    developer cryptographic signatures (AUTHENTICATE WITH "0x…").   (exit 2)
 ```
 
@@ -183,19 +183,19 @@ $ sentryc unsigned_alarm.pi
 
 ```
 $ sentryc race.pi                  # warns, still builds  (exit 0)
-⚠️  [Line 7]: Potential TOCTOU race: IF queries peripheral 'PIR' outside an
+  [Line 7]: Potential TOCTOU race: IF queries peripheral 'PIR' outside an
               atomic hardware block. Wrap it in ATOMIC ... END.
 
 $ sentryc race.pi --hard           # now a hard error     (exit 2)
 [SentryPi] Running Static Security Firewall...
-❌ COMPILE ERROR [Line 7]: Potential TOCTOU race: IF queries peripheral 'PIR'
+ COMPILE ERROR [Line 7]: Potential TOCTOU race: IF queries peripheral 'PIR'
    outside an atomic hardware block. Wrap it in ATOMIC ... END.
-⚠️  Compilation aborted. Physical hardware protected.      (exit 2)
+  Compilation aborted. Physical hardware protected.      (exit 2)
 ```
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 Shipped in this release:
 

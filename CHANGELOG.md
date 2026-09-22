@@ -21,9 +21,18 @@ All notable changes to SentryPi are documented here. This project follows
 - Repo now lives at `github.com/ZeroHackOrg/SentryPi` (initial push).
 
 ### Changed
+- README rebuilt as a production-grade document: problem/solution framing,
+  use-case matrix, "The Gap We Close" status-quo comparison, sponsor tiers,
+  and a categorized reference list.
+- Emoji removed repo-wide (docs, compiler output, playground, demo driver) in
+  favor of clean, professional console and documentation formatting.
 - README: human-centric smart-home framing, demo-rig wiring note, backend
-  registry (`SENTRYPI_TARGET`) in the CLI reference, test badge aligned to
-  the 92 passing tests.
+  registry (`SENTRYPI_TARGET`) in the CLI reference.
+
+### Fixed
+- README no longer triggers GitHub's "Unable to render rich display" fallback
+  (legacy Mermaid incompatibility removed); its `<br/>`/emoji node labels were
+  replaced with portable ASCII pipeline and decision-flow diagrams.
 
 ### Verified
 - Full feature pass on a clean checkout: all 92 unit tests, editable install,

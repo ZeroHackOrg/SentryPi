@@ -79,9 +79,9 @@ def main():
     print(f"[compiler] ok={second.ok}  threat findings={second.threat_count}")
     print(f"[compiler] artifacts emitted: {artifacts(second) or 'NONE'}")
     for error in second.errors:
-        print(f"❌ {error.message}")
+        print(f"ERROR: {error.message}")
     led(green=False, red=True)
-    print("\n🔒 SAFE-FAIL engaged — appliance disengaged, hardware isolated.")
+    print("\nSAFE-FAIL engaged — appliance disengaged, hardware isolated.")
     print("    Compilation blocked before deployment (exit code 2).")
 
     return 0 if first.ok and not second.ok else 1
